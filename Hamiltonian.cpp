@@ -7,6 +7,8 @@
 #include <time.h>
 #include <utility> // Pair
 
+void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L);
+
 int BinomialCoeff(int n, int k)
 {
     int nCk = 1;
@@ -72,7 +74,7 @@ void GetOrbitalString(int Index, int NumElectrons, int NumOrbitals, std::vector<
     }
 }
 
-int CountDifferences(std::vector<bool> KetString, std::vector<bool> BraString)
+int CountDifferences(std::vector<bool> BraString, std::vector<bool> KetString)
 {
     int NumDiff = 0;
     for(int i = 0; i < KetString.size(); i++)
@@ -88,7 +90,7 @@ int CountDifferences(std::vector<bool> KetString, std::vector<bool> BraString)
     return NumDiff;
 }
 
-int FindSign(std::vector<bool> KetString, std::vector<bool> BraString)
+int FindSign(std::vector<bool> BraString, std::vector<bool> KetString)
 {
     int Sign = 0;
     std::vector<int> KetOrder;
@@ -130,12 +132,44 @@ int FindSign(std::vector<bool> KetString, std::vector<bool> BraString)
     }
 }
 
+std::vector<int> ListOrbitals(std::vector<bool> DeterminantString)
+{
+    std::vector<int> OrbitalList;
+    for(int i = 0; i < DeterminantString.size(); i++)
+    {
+        if(DeterminantString[i])
+        {
+            OrbitalList.push_back(i + 1);
+        }
+    }
+    return OrbitalList;
+}
+
+std::vector<int> ListDifference(std::vector<bool> BraString, std::vector<bool> KetString) // For 2e difference, put in <ij|kl> form
+{
+    std::vector<int> OrbitalList;
+    std::vector<int> tmpVec;
+    for(int i = 0; i < KetString.size(); i++)
+    {
+        if(BraString[i] && !KetString[i])
+        {
+            OrbitalList.push_back(i + 1);
+        }
+        if(!BraString[i] && KetString[i])
+        {
+            tmpVec.push_back(i + 1);
+        }
+    }
+    OrbitalList.insert(OrbitalList.end(), tmpVec.begin(), tmpVec.end());
+    return OrbitalList;
+}
+
 int main()
 {
     int aElectrons = 3;
     int bElectrons = 3;
-    int aOrbitals = 15;
-    int bOrbitals = 15;
+    int aOrbitals = 8;
+    int bOrbitals = 8;
     int aVirtual = aOrbitals - aElectrons;
     int bVirtual = bOrbitals - bElectrons;
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
@@ -390,12 +424,27 @@ int main()
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
-    
+
     std::cout << "FCI: ...elements differing by two spin-orbitals complete." << std::endl;
 
     Ham.setFromTriplets(tripletList.begin(), tripletList.end());
 
     std::cout << "FCI: Hamiltonian initialization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+
+    Start = clock();
+    std::cout << "FCI: Beginning Direct Diagonalization... ";
+    Eigen::MatrixXd HamDense = Ham;
+    Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > HamEV;
+    HamEV.compute(HamDense);
+    std::cout << " done" << std::endl;
+    std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues().real() << std::endl;
+    std::cout << "FCI: Direct Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+
+    Start = clock();
+    std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
+    Davidson(Ham, Dim, 3, 10);
+    std::cout << "...done" << std::endl;
+    std::cout << "FCI: Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
 
     return 0;
 }

@@ -190,37 +190,37 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
     } // End Davidson Iteration for loop
 }
 
-int main()
-{
-    std::srand(0);
+// int main()
+// {
+//     std::srand(0);
 
-    Eigen::SparseMatrix<double> M(50,50);
-    for(int i = 0; i < 50; i++)
-    {
-        for(int j = 0; j < 50; j++)
-        {
-            if(i != j) 
-            {
-                M.insert(i,j) = 1;
-            }
-            else
-            {
-                if(i < 5)
-                {
-                    M.insert(i, i) = 1 + 0.1 * ((double)i - 1);
-                }
-                else
-                {
-                    M.insert(i, i) = 2 * (double)i - 1;
-                }
-            }
-        }
-    }
+//     Eigen::SparseMatrix<double> M(50,50);
+//     for(int i = 0; i < 50; i++)
+//     {
+//         for(int j = 0; j < 50; j++)
+//     for(int i = 0; i < 50; i++)
+//     {
+//         for(int j = 0; j < 50; j++)
+//         {
+//             if(i != j) 
+//             else
+//             {
+//                 if(i < 5)
+//                 {
+//                     M.insert(i, i) = 1 + 0.1 * ((double)i - 1);
+//                 }
+//                 else
+//                 {
+//                     M.insert(i, i) = 2 * (double)i - 1;
+//                 }
+//             }
+//         }
+//     }
 
-    Davidson(M, 50, 4, 4);
+//     Davidson(M, 50, 4, 4);
 
-    Eigen::MatrixXd MDense = M;
-    Eigen::EigenSolver< Eigen::MatrixXd > ES(MDense);
-    std::cout << ES.eigenvalues().real() << std::endl;
-    return 0;
-}
+//     Eigen::MatrixXd MDense = M;
+//     Eigen::EigenSolver< Eigen::MatrixXd > ES(MDense);
+//     std::cout << ES.eigenvalues().real() << std::endl;
+//     return 0;
+// }
