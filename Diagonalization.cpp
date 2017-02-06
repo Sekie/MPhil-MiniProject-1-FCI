@@ -104,7 +104,6 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
            in the subspace spanned by the current set of b vectors.
         */
         Eigen::MatrixXd G =  Eigen::MatrixXd::Zero(L, L); // Hamiltonian in smaller subspace. G in Lui's paper.
-        double tmpDouble;
         for(int i = 0; i < L; i++) // Place diagonal elements first.
         {
             G(i, i) = BVectors[i].dot(HbVectors[i]); // <bi | H | bi>
@@ -118,7 +117,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
             }
         }
 
-        Eigen::EigenSolver< Eigen::MatrixXd > EigensystemG(G); // I think how Eigen orders eigenvectors here determines which ones we converge towards.
+        Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > EigensystemG(G); // I think how Eigen orders eigenvectors here determines which ones we converge towards.
         /***** Step 3 *****/
         std::vector< Eigen::VectorXd > FVectors; // Correction vectors fk in Lui's paper.
         std::vector< Eigen::VectorXd > DVectors; // These are the residual vectors, called dk in Lui's paper.
@@ -131,14 +130,14 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
             Eigen::VectorXd ResidualK = Eigen::VectorXd::Zero(Dim); // Holds the k'th residual vector.
             for(int i = 0; i < L; i++) // Now we sum over terms that make the residual vector.
             {
-                ResidualK += EigensystemG.eigenvectors().real().col(k)[i] * (HbVectors[i] - (EigensystemG.eigenvalues().real()[k] * BVectors[i]));
+                ResidualK += EigensystemG.eigenvectors().col(k)[i] * (HbVectors[i] - (EigensystemG.eigenvalues()[k] * BVectors[i]));
             }
             DVectors.push_back(ResidualK); // Add this to the list of residual vectors.
 
             if(fabs(ResidualK.dot(ResidualK)) < Tolerance) // If the eigenvector of G is the eigenvector of H, then we should have zero norm.
             {
-                std::cout << "Eigenvalue " << k << " converged with value " << EigensystemG.eigenvalues().real()[k] << 
-                " and eigenvector\n" << EigensystemG.eigenvectors().real().col(k) << std::endl;
+                std::cout << "Eigenvalue " << k << " converged with value " << EigensystemG.eigenvalues()[k] << 
+                " and eigenvector\n" << EigensystemG.eigenvectors().col(k) << std::endl;
                 NumberFound++; // Count that we've converged.
             }
         }
@@ -156,7 +155,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
             Eigen::VectorXd fk(Dim); // Holds the k'th correction vector.
             for(int i = 0; i < Dim; i++)
             {
-                fk[i] = DVectors[k][i] / (EigensystemG.eigenvalues().real()[k] - Ham.coeffRef(i,i));
+                fk[i] = DVectors[k][i] / (EigensystemG.eigenvalues()[k] - Ham.coeffRef(i,i));
             }
             /***** Step 4 *****/
             fk /= fk.norm(); // Normalize.

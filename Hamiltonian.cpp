@@ -6,14 +6,15 @@
 #include <vector>
 #include <time.h>
 #include <utility> // Pair
+#include <tuple>
 
 void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L);
 
-int BinomialCoeff(int n, int k)
+int BinomialCoeff(int n, int k) // n choose k
 {
     int nCk = 1;
     int denom = 1;
-    if (k <= 0)
+    if (k <= 0 || k >= n)
     {
         return 1;
     }
@@ -26,6 +27,7 @@ int BinomialCoeff(int n, int k)
     return nCk;
 }
 
+/* Indexing equation given in Knowles and Handy */
 int Z_ForIndex(int ElectronNumber, int OrbitalNumber, int NumElectrons, int NumOrbitals)
 {
     if(ElectronNumber == NumElectrons)
@@ -50,35 +52,58 @@ int StringIndex(std::vector<int> Orbitals, int NumOrbitals)
     return idx;
 }
 
+/* This imposes an order onto the binary strings. The function takes an index and returns the corresponding binary string.
+   We order the strings as such:
+   0: 11000
+   1: 10100
+   2: 10010
+   3: 10001
+   4: 01100
+   5: 01010
+   6: 01001
+   7: 00110
+   8: 00101
+   9: 00011
+   We find the binary string recursively. We first ask, is the first digit 0 or 1. The first digit turns into a zero when
+   all of the remaining electrons (n_electrons - 1) have permuted through all of the orbitals excluding the lowest one 
+   (n_orbitals - 1). So if the index is above (n_orb - 1) choose (n_e - 1), then the first digit is zero. In this case, we
+   ask ourselves the same problem for the remaining digits, but now we have one less orbital and we should subtract the number
+   of permutations from the index. If the index is below, then the first digit is one. We fill that in and ask ourselves the 
+   same question with the remaining digits. It is the same problem but with one less orbital AND one less electron, but the 
+   index should not be changed. */
 void GetOrbitalString(int Index, int NumElectrons, int NumOrbitals, std::vector<bool> &OrbitalString)
 {
-    if(NumOrbitals > 0)
+    if(NumOrbitals > 0) // Stop when we have chosen a digit for all orbitals. We take off an orbital each time we fill it.
     {
-        int PreviousComb = BinomialCoeff(NumOrbitals - 1, NumElectrons - 1);
-        if (NumElectrons < 1)
+        int PreviousComb = BinomialCoeff(NumOrbitals - 1, NumElectrons - 1); // Number of ways for the higher electrons to permute in the higher orbitals.
+        if (NumElectrons < 1) // If we don't have any electrons left, then all the remaining orbitals have to be empty.
         {
             OrbitalString.push_back(false);
-            GetOrbitalString(Index, NumElectrons, NumOrbitals - 1, OrbitalString);
+            GetOrbitalString(Index, NumElectrons, NumOrbitals - 1, OrbitalString); // Move onto next orbital, remove one orbital from the list.
         }
-        else if(Index < PreviousComb)
+        else if(Index < PreviousComb) // Means we have not finished all permutations and there is still an electron in the lowest orbital.
         {
-            OrbitalString.push_back(true);
-            GetOrbitalString(Index, NumElectrons - 1, NumOrbitals - 1, OrbitalString);
+            OrbitalString.push_back(true); // Put this electron there.
+            GetOrbitalString(Index, NumElectrons - 1, NumOrbitals - 1, OrbitalString); // Consider the same problem, but with one less orbital and one less electron.
         }
-        else
+        else // Means we have finished all those permuations and the electron in the first orbital should have moved.
         {
-            Index -= PreviousComb;
-            OrbitalString.push_back(false);
-            GetOrbitalString(Index, NumElectrons, NumOrbitals - 1, OrbitalString);
+            Index -= PreviousComb; // Truncate the index, since we are considering a reduced problem.
+            OrbitalString.push_back(false); // Empty orbital.
+            GetOrbitalString(Index, NumElectrons, NumOrbitals - 1, OrbitalString); // Consider the same problem, but with one less orbital and a truncated index.
         }
     }
 }
 
+/* This counts the number of differences between two different binary representations */
 int CountDifferences(std::vector<bool> BraString, std::vector<bool> KetString)
 {
     int NumDiff = 0;
     for(int i = 0; i < KetString.size(); i++)
     {
+        /* We want to count different orbitals, but if we end up doing that brute force we will double count since
+           01 and 10 are different by one orbital, but their strings mismatch in two positions. It is enough to check
+           that a 1 on one of the strings mismatches with the other string. */
         if(KetString[i])
         {
             if(!BraString[i])
@@ -90,28 +115,35 @@ int CountDifferences(std::vector<bool> BraString, std::vector<bool> KetString)
     return NumDiff;
 }
 
+/* 
+   This is a function that finds the sign after putting two determinants into Slater-Condon form.
+   To do so, we cound the number of positions each similar element is away from each other, and then
+   we total this number. If the total is even, then the sign is positive and negative otherwise. Since
+   the orbitals are organized ascending orbital number, we can always permute the lowest match, then the
+   second lowest, and so on until they all line up. This justifies this method.
+*/
 int FindSign(std::vector<bool> BraString, std::vector<bool> KetString)
 {
-    int Sign = 0;
-    std::vector<int> KetOrder;
-    std::vector<int> BraOrder;
+    int Sign = 0; // Will be +1 or -1, the sign.
+    std::vector<int> KetOrder; // Counts position of the matching element in the ket.
+    std::vector<int> BraOrder; // Does the same for the bra.
     int KetCount = 0;
     for(int i = 0; i < KetString.size(); i++)
     {
-        if(KetString[i])
+        if(KetString[i]) // We loop through both binary strings until we find a match, adding one to the counter each time to count our position.
         {
-            KetCount++;
-            if(BraString[i]) // Matching elements.
+            KetCount++; // Count position along the ket. It only counts 1's, so filled orbitals.
+            if(BraString[i]) // We have a match, but we don't know which position it is on the bra.
             {
-                int BraCount = 1; // Not counting the actual element itself, so ammend with plus one.
-                for(int j = 0; j < i; j++)
+                int BraCount = 1; // We go through the bra to count the number of orbitals (1's) before it. Not counting the actual element itself, so ammend with plus one.
+                for(int j = 0; j < i; j++) // Loop through the string.
                 {
-                    if(BraString[j])
+                    if(BraString[j]) // Add one to the counter whereever an orbital is occupied.
                     {
                         BraCount++;
                     }
                 }
-                KetOrder.push_back(KetCount);
+                KetOrder.push_back(KetCount); // Add these positions to the list.
                 BraOrder.push_back(BraCount);
             }
         }
@@ -119,7 +151,7 @@ int FindSign(std::vector<bool> BraString, std::vector<bool> KetString)
 
     for(int i = 0; i < KetOrder.size(); i++)
     {
-        Sign += (abs(KetOrder[i] - BraOrder[i]));
+        Sign += (abs(KetOrder[i] - BraOrder[i])); // Take hte total sum of position differences and use parity to find sign.
     }
 
     if(Sign % 2 == 0)
@@ -132,12 +164,13 @@ int FindSign(std::vector<bool> BraString, std::vector<bool> KetString)
     }
 }
 
+/* This converts a binary string into a string of orbital numbers. For example, 01011 -> 245 */
 std::vector<int> ListOrbitals(std::vector<bool> DeterminantString)
 {
     std::vector<int> OrbitalList;
-    for(int i = 0; i < DeterminantString.size(); i++)
+    for(int i = 0; i < DeterminantString.size(); i++) // Loop through the binary string
     {
-        if(DeterminantString[i])
+        if(DeterminantString[i]) // Put down the position of 1 for each 1 in the string.
         {
             OrbitalList.push_back(i + 1);
         }
@@ -145,22 +178,27 @@ std::vector<int> ListOrbitals(std::vector<bool> DeterminantString)
     return OrbitalList;
 }
 
+/* This function will take two binary strings and give the numerical number of the orbitals in which the two strings differ.
+   For example, 0010110 and 0010011 differ in one orbital and can be reformulated as 356 and 367. We see that these two determinants
+   disagree in orbital 5 and orbital 7. So when looking at <356|H|367>, this funciton stores 5, 7. That is, the difference from the 
+   bra as the orbital number then the distant from the ket as the orbital number. For two electron differences, <1234|H|3456> is 
+   listed in the vector as 1, 2, 5, 6, similar to the two electron integral denotation <ij|kl>. */ 
 std::vector<int> ListDifference(std::vector<bool> BraString, std::vector<bool> KetString) // For 2e difference, put in <ij|kl> form
 {
-    std::vector<int> OrbitalList;
-    std::vector<int> tmpVec;
+    std::vector<int> OrbitalList; // Holds the bra differences, we ammend the ket differences on afterwards.
+    std::vector<int> tmpVec; // Holds the ket differences.
     for(int i = 0; i < KetString.size(); i++)
     {
-        if(BraString[i] && !KetString[i])
+        if(BraString[i] && !KetString[i]) // There is a mismatch, with the occupied orbital belonging to the bra. <..1..|..0..>
         {
             OrbitalList.push_back(i + 1);
         }
-        if(!BraString[i] && KetString[i])
+        if(!BraString[i] && KetString[i]) // Mismatch, occupied on the ket. <..0..|..1..>
         {
             tmpVec.push_back(i + 1);
         }
     }
-    OrbitalList.insert(OrbitalList.end(), tmpVec.begin(), tmpVec.end());
+    OrbitalList.insert(OrbitalList.end(), tmpVec.begin(), tmpVec.end()); // Stick the ket list onto the end.
     return OrbitalList;
 }
 
@@ -168,10 +206,12 @@ int main()
 {
     int aElectrons = 3;
     int bElectrons = 3;
-    int aOrbitals = 8;
-    int bOrbitals = 8;
-    int aVirtual = aOrbitals - aElectrons;
-    int bVirtual = bOrbitals - bElectrons;
+    int aOrbitals = 10;
+    int bOrbitals = 10;
+    int NumberOfEV = 5;
+    int L = NumberOfEV * 2;
+    // int aVirtual = aOrbitals - aElectrons;
+    // int bVirtual = bOrbitals - bElectrons;
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
@@ -249,6 +289,7 @@ int main()
     for(int i = 0; i < Dim; i++)
     {
         /* Diagonal Elements */
+        /* Since I order the orbitals the same way in the bra and ket, there should be no sign change */
         tripletList.push_back(T(i, i , 1));
     }
     std::cout << "FCI: ...diagonal elements complete." << std::endl;
@@ -437,12 +478,12 @@ int main()
     Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > HamEV;
     HamEV.compute(HamDense);
     std::cout << " done" << std::endl;
-    std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues().real() << std::endl;
+    std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues() << std::endl;
     std::cout << "FCI: Direct Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
 
     Start = clock();
     std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
-    Davidson(Ham, Dim, 3, 10);
+    Davidson(Ham, Dim, NumberOfEV, L);
     std::cout << "...done" << std::endl;
     std::cout << "FCI: Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
 
