@@ -86,11 +86,11 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
     {
         if(L > Dim) // This means we have a complete basis. The solution should be exact.
         {
-            std::cout << "The subspace dimension has surpassed dimension of whole space." << std::endl;
+            std::cout << "FCI: The subspace dimension has surpassed dimension of whole space." << std::endl;
             break;
         }
 
-        std::cout << "Davidson iteration " << Step + 1 << std::endl; // To show us that something is happening.
+        std::cout << "FCI: Davidson iteration " << Step + 1 << std::endl; // To show us that something is happening.
 
         std::vector< Eigen::VectorXd > HbVectors; // Hamiltonian applied to the b vectors. Better to store these since we need them later.
         for(int i = 0; i < L; i++)
@@ -136,7 +136,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
 
             if(fabs(ResidualK.dot(ResidualK)) < Tolerance) // If the eigenvector of G is the eigenvector of H, then we should have zero norm.
             {
-                std::cout << "Eigenvalue " << k << " converged with value " << EigensystemG.eigenvalues()[k] << 
+                std::cout << "FCI: Eigenvalue " << k << " converged with value " << EigensystemG.eigenvalues()[k] << 
                 " and eigenvector\n" << EigensystemG.eigenvectors().col(k) << std::endl;
                 NumberFound++; // Count that we've converged.
             }
@@ -144,7 +144,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
 
         if(NumberFound == NumberOfEV) // This means we have found all the eigenvalues we wanted to find, and we can exit the loop.
         {
-            std::cout << "All eigenvalues found. Terminating loop." << std::endl;
+            std::cout << "FCI: All eigenvalues found. Terminating loop." << std::endl;
             /* Something to hold eigensystem? */
             break;
         }

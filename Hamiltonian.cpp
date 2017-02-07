@@ -235,10 +235,10 @@ int main()
         bStrings.push_back(tmpVec);
     }
 
-    std::vector< std::pair<int, int> > aSingleDifference;
-    std::vector< std::pair<int, int> > aDoubleDifference;
+    std::vector< std::tuple<int, int, int, std::vector<int>> > aSingleDifference; // i index, j index, sign, list of different orbitals.
+    std::vector< std::tuple<int, int, int, std::vector<int>> > aDoubleDifference;
     int tmpInt;
-    std::pair<int, int> tmpPair;
+    std::tuple<int, int, int, std::vector<int>> tmpTuple;
     for(int i = 0; i < aDim; i++)
     {
         for(int j = i + 1; j < aDim; j++)
@@ -246,19 +246,23 @@ int main()
             tmpInt = CountDifferences(aStrings[i], aStrings[j]);
             if(tmpInt == 1)
             {
-                tmpPair = std::make_pair(i,j);
-                aSingleDifference.push_back(tmpPair);
+                int tmpInt2 = FindSign(aStrings[i], aStrings[j]);
+                std::vector<int> tmpVec = ListDifference(aStrings[i], aStrings[j]);
+                tmpTuple = std::make_tuple(i, j, tmpInt2, tmpVec);
+                aSingleDifference.push_back(tmpTuple);
             }
             if(tmpInt == 2)
             {
-                tmpPair = std::make_pair(i,j);
-                aDoubleDifference.push_back(tmpPair);
+                int tmpInt2 = FindSign(aStrings[i], aStrings[j]);
+                std::vector<int> tmpVec = ListDifference(aStrings[i], aStrings[j]);
+                tmpTuple = std::make_tuple(i, j, tmpInt2, tmpVec);
+                aDoubleDifference.push_back(tmpTuple);
 
             }
         }
     }
-    std::vector< std::pair<int, int> > bSingleDifference;
-    std::vector< std::pair<int, int> > bDoubleDifference;
+    std::vector< std::tuple<int, int, int, std::vector<int>> > bSingleDifference;
+    std::vector< std::tuple<int, int, int, std::vector<int>> > bDoubleDifference;
     for(int i = 0; i < bDim; i++)
     {
         for(int j = i + 1; j < bDim; j++)
@@ -266,13 +270,17 @@ int main()
             tmpInt = CountDifferences(bStrings[i], bStrings[j]);
             if(tmpInt == 1)
             {
-                tmpPair = std::make_pair(i,j);
-                bSingleDifference.push_back(tmpPair);
+                int tmpInt2 = FindSign(bStrings[i], bStrings[j]);
+                std::vector<int> tmpVec = ListDifference(bStrings[i], bStrings[j]);
+                tmpTuple = std::make_tuple(i, j, tmpInt2, tmpVec);
+                bSingleDifference.push_back(tmpTuple);
             }
             if(tmpInt == 2)
             {
-                tmpPair = std::make_pair(i,j);
-                bDoubleDifference.push_back(tmpPair);
+                int tmpInt2 = FindSign(bStrings[i], bStrings[j]);
+                std::vector<int> tmpVec = ListDifference(bStrings[i], bStrings[j]);
+                tmpTuple = std::make_tuple(i, j, tmpInt2, tmpVec);
+                bDoubleDifference.push_back(tmpTuple);
 
             }
         }
@@ -334,8 +342,8 @@ int main()
         int Index1, Index2;
         for(int j = 0; j < bDim; j++)
         {
-            Index1 = aSingleDifference[i].first + j * aDim; // Diagonal in beta states. Hop to other beta blocks.
-            Index2 = aSingleDifference[i].second + j * aDim;
+            Index1 = std::get<0>(aSingleDifference[i]) + j * aDim; // Diagonal in beta states. Hop to other beta blocks.
+            Index2 = std::get<1>(aSingleDifference[i]) + j * aDim;
 
             tripletList_Private.push_back(T(Index1, Index2 , 1));
             tripletList_Private.push_back(T(Index2, Index1 , 1));
@@ -371,8 +379,8 @@ int main()
         int Index1, Index2;
         for(int j = 0; j < aDim; j++)
         {
-            Index1 = bSingleDifference[i].first * aDim + j; // Loop through each same alpha state in each beta block.
-            Index2 = bSingleDifference[i].second * aDim + j;
+            Index1 = std::get<0>(bSingleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
+            Index2 = std::get<1>(bSingleDifference[i]) * aDim + j;
 
             tripletList_Private.push_back(T(Index1, Index2 , 1));
             tripletList_Private.push_back(T(Index2, Index1 , 1));
@@ -392,8 +400,8 @@ int main()
         int Index1, Index2;
         for(int j = 0; j < bDim; j++)
         {
-            Index1 = aDoubleDifference[i].first + j * aDim;
-            Index2 = aDoubleDifference[i].second + j * aDim;
+            Index1 = std::get<0>(aDoubleDifference[i]) + j * aDim;
+            Index2 = std::get<1>(aDoubleDifference[i]) + j * aDim;
 
             tripletList_Private.push_back(T(Index1, Index2 , 1));
             tripletList_Private.push_back(T(Index2, Index1 , 1));
@@ -409,8 +417,8 @@ int main()
 
         for(int j = 0; j < aDim; j++)
         {
-            Index1 = bDoubleDifference[i].first * aDim + j; // Loop through each same alpha state in each beta block.
-            Index2 = bDoubleDifference[i].second * aDim + j;
+            Index1 = std::get<0>(bDoubleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
+            Index2 = std::get<1>(bDoubleDifference[i]) * aDim + j;
 
             tripletList_Private.push_back(T(Index1, Index2 , 1));
             tripletList_Private.push_back(T(Index2, Index1 , 1));
@@ -428,8 +436,8 @@ int main()
         int Index1, Index2;
         for(int j = 0; j < bSingleDifference.size(); j++)
         {
-            Index1 = aSingleDifference[i].first + aDim * bSingleDifference[j].first;
-            Index2 = aSingleDifference[i].second + aDim * bSingleDifference[j].second;
+            Index1 = std::get<0>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
+            Index2 = std::get<1>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]);
             //Ham.insert(Index1, Index2) = 1;
             //Ham.insert(Index2, Index1) = 1;
             tripletList_Private.push_back(T(Index1, Index2 , 1));
@@ -455,8 +463,8 @@ int main()
                |____________|____________|____________|
                So we have to include some transposed elements too. It is enough to transpose the alpha indices. this
                transposes each block above, and we end up with a fully upper triangular matrix. */
-            Index1 = aSingleDifference[i].second + aDim * bSingleDifference[j].first;
-            Index2 = aSingleDifference[i].first + aDim * bSingleDifference[j].second; // Note that first and second are switched for alpha here.
+            Index1 = std::get<1>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
+            Index2 = std::get<0>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]); // Note that first and second are switched for alpha here.
 
             tripletList_Private.push_back(T(Index1, Index2 , 1));
             tripletList_Private.push_back(T(Index2, Index1 , 1));
