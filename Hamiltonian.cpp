@@ -205,6 +205,48 @@ std::vector<int> ListDifference(std::vector<bool> BraString, std::vector<bool> K
     return OrbitalList;
 }
 
+/* This function calculated <mn||kl> and takes as arguments, the orbital numbers, the position of these orbitals in the
+   concatenated orbital string (abOrbitalList), the number of alpha orbitals, and the map */
+double TwoElectronIntegral(int m, int n, int k, int l, int pos_m, int pos_n, int pos_k, int pos_l, std::map<std::string, double> Integrals)
+{
+    double mknl = 0; // First term. (mk|nl)
+    double mlnk = 0; // Second term. (ml|nk)
+    
+    /* Deal with first term first */
+    if((pos_m != pos_k && m == k) || (pos_n != pos_l && n == l)) // Means first coordinate is on different spin (orbitals only repeat if different spins) but same spatial orbitals, and the same check for the second coordinate.
+    {
+        mknl = 0;
+    }
+    else
+    {
+        mknl = Integrals[std::to_string(m) + " " + std::to_string(k) + " " + std::to_string(n) + " " + std::to_string(l)];
+    }
+    /* Now, the second term */
+    if((pos_m != pos_l && m == l) || (pos_n != pos_k && n == k))
+    {
+        mlnk = 0;
+    }
+    else
+    {
+        mlnk = Integrals[std::to_string(m) + " " + std::to_string(l) + " " + std::to_string(n) + " " + std::to_string(k)];
+    }
+    return mknl - mlnk;
+}
+
+int CountOrbitalPosition(int Orbital, std::vector<int> OrbitalList)
+{
+    int Count = 0;
+    for(int i = 0; i < OrbitalList.size(); i++)
+    {
+        Count++;
+        if(Orbital == OrbitalList[i])
+        {
+            break;
+        }
+    }
+    return Count;
+}
+
 int main()
 {
     InputObj Input;
@@ -341,7 +383,11 @@ int main()
                     double tmpDoubleD1 = Input.Integrals[std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ij])];
                     /* Second term is (mn|mn). This is zero when m and n are different spins and same spatial orbitals. */
                     double tmpDoubleD2;
-                    if(ijij - ij >= aOrbitalList.size() && abOrbitalList[ij] == abOrbitalList[ijij]) // Means different spin orbitals and same spatial orbitals.
+                    if(ijij != ij && abOrbitalList[ij] == abOrbitalList[ijij]) // Means different spin orbitals and same spatial orbitals.
+                    {
+                        tmpDoubleD2 = 0;
+                    }
+                    else
                     {
                         tmpDoubleD2 = Input.Integrals[std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ijij])];
                     }
@@ -386,20 +432,43 @@ int main()
                |            |            |         *  |
                |            |            |            |
                |____________|____________|____________|
+      We denote the bra <...mn...|
+            and the ket |...pn...>
+
+      To find these elements, we are going to calculation <m|h|p> using the list of differences. Then we construct
+      an orbital list for this basis function and loop through all shared orbitals, meaning without m and p, and 
+      calculate the two electron operator contribution.
     */
     #pragma omp parallel for
     for(int i = 0; i < aSingleDifference.size(); i++)
     {
         std::vector<T> tripletList_Private;
         int Index1, Index2;
+        double tmpDouble1 = 0;
+        // First, add the one electron contribution.
+        tmpDouble1 += Input.Integrals[std::to_string(std::get<3>(aSingleDifference[i])[0]) + " " + std::to_string(std::get<3>(aSingleDifference[i])[1]) + " 0 0"];
+        // Now, two electron contribution
         for(int j = 0; j < bDim; j++)
         {
+            double tmpDouble2 = 0;
+            std::vector<int> BraOrbitalList = aOrbitalList[std::get<0>(aSingleDifference[i])]; // To make the orbital list of the bra, we talk the list of the current alpha determinant...
+            BraOrbitalList.insert(BraOrbitalList.end(), bOrbitalList[j].begin(), bOrbitalList[j].end()); // ...and append the beta determinant, which is the same for bra and ket.
+            std::vector<int> KetOrbitalList = aOrbitalList[std::get<1>(aSingleDifference[i])]; // Same for the ket.
+            KetOrbitalList.insert(KetOrbitalList.end(), bOrbitalList[j].begin(), bOrbitalList[j].end());
+            int pos_m = CountOrbitalPosition(std::get<3>(aSingleDifference[i])[0], KetOrbitalList); // Position in ket of orbital missing in bra.
+            // int pos_p = CountOrbitalPosition(std::get<3>(aSingleDifference[i])[1], BraOrbitalList); // Position of p in the bra.
+            for(int n = 0; n < KetOrbitalList.size(); n++) // Sum over electrons in the Ket.
+            {
+                if(n + 1 == pos_m) continue; // n shouldn't loop over different orbitals. We're looping over ket orbitals, so ignore the m.
+                tmpDouble2 += TwoElectronIntegral(std::get<3>(aSingleDifference[i])[0], KetOrbitalList[n], std::get<3>(aSingleDifference[i])[1], KetOrbitalList[n], pos_m, n + 1, 1, n + 1, Input.Integrals);
+                // Note that we are careless about the position of p because know m != p always and n != p since the ket excludes p. So we will never have a situation where we get 0 from either integral.
+            }
+
             Index1 = std::get<0>(aSingleDifference[i]) + j * aDim; // Diagonal in beta states. Hop to other beta blocks.
             Index2 = std::get<1>(aSingleDifference[i]) + j * aDim;
 
-            tripletList_Private.push_back(T(Index1, Index2 , 1));
-            tripletList_Private.push_back(T(Index2, Index1 , 1));
-            //std::cout << Index1 << "\t" << Index2 << std::endl;
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
         }
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
@@ -429,13 +498,30 @@ int main()
     {
         std::vector<T> tripletList_Private;
         int Index1, Index2;
+        double tmpDouble1 = 0;
+        // First, add the one electron contribution.
+        tmpDouble1 += Input.Integrals[std::to_string(std::get<3>(bSingleDifference[i])[0]) + " " + std::to_string(std::get<3>(bSingleDifference[i])[1]) + " 0 0"];
+        // Now, two electron contribution
         for(int j = 0; j < aDim; j++)
         {
+            double tmpDouble2 = 0;
+            std::vector<int> BraOrbitalList = aOrbitalList[j]; // Same as last time, our orbital list are the alpha orbitals + beta orbitals.
+            BraOrbitalList.insert(BraOrbitalList.begin(), bOrbitalList[std::get<0>(bSingleDifference[i])].begin(), bOrbitalList[std::get<0>(bSingleDifference[i])].end());
+            std::vector<int> KetOrbitalList = aOrbitalList[j];
+            KetOrbitalList.insert(KetOrbitalList.begin(), bOrbitalList[std::get<1>(bSingleDifference[i])].begin(), bOrbitalList[std::get<1>(bSingleDifference[i])].end());
+            int pos_m = CountOrbitalPosition(std::get<3>(bSingleDifference[i])[0], KetOrbitalList); // Position in ket of orbital missing in bra.
+            // int pos_p = CountOrbitalPosition(std::get<3>(bSingleDifference[i])[1], BraOrbitalList);
+            for(int n = 0; n < KetOrbitalList.size(); n++) // Sum over orbitals in Ket.
+            {
+                if(n + 1 == pos_m) continue; // n shouldn't loop over different orbitals. We're looping over ket orbitals, so ignore the m.
+                tmpDouble2 += TwoElectronIntegral(std::get<3>(bSingleDifference[i])[0], KetOrbitalList[n], std::get<3>(bSingleDifference[i])[1], KetOrbitalList[n], pos_m, n + 1, 1, n + 1, Input.Integrals);
+            }
+
             Index1 = std::get<0>(bSingleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bSingleDifference[i]) * aDim + j;
 
-            tripletList_Private.push_back(T(Index1, Index2 , 1));
-            tripletList_Private.push_back(T(Index2, Index1 , 1));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
         }
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
