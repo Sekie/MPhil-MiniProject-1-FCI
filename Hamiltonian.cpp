@@ -7,6 +7,9 @@
 #include <time.h>
 #include <utility> // Pair
 #include <tuple>
+#include <map>
+#include "ReadInput.h"
+#include <fstream>
 
 void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L);
 
@@ -204,11 +207,14 @@ std::vector<int> ListDifference(std::vector<bool> BraString, std::vector<bool> K
 
 int main()
 {
-    int aElectrons = 3;
-    int bElectrons = 3;
-    int aOrbitals = 10;
-    int bOrbitals = 10;
-    int NumberOfEV = 5;
+    InputObj Input;
+    Input.GetInputName();
+    Input.Set();
+    int aElectrons = Input.aElectrons;
+    int bElectrons = Input.bElectrons;
+    int aOrbitals = Input.aOrbitals;
+    int bOrbitals = Input.bOrbitals;
+    int NumberOfEV = 2;
     int L = NumberOfEV * 2;
     // int aVirtual = aOrbitals - aElectrons;
     // int bVirtual = bOrbitals - bElectrons;
@@ -293,12 +299,58 @@ int main()
     std::vector<T> tripletList;
     tripletList.reserve(Dim);
 
-    // #pragma omp parallel for // Probably not worth diagonalizing since we have to include a critical in each loop.
-    for(int i = 0; i < Dim; i++)
+    /* The basis of the matrix is ordered by reverse lexicographic ordering (A,B) where A is the A'th  alpha orbital
+       and B is the B'th beta orbital. Essentially, this means we have beta blocks and inside each block is a matrix for
+       the alpha elements. */
+
+    /* Diagonal Elements */
+    /* Since I order the orbitals the same way in the bra and ket, there should be no sign change */
+    double tmpDoubleD;
+    std::vector< std::vector<int> > aOrbitalList; // [Determinant Number][Occupied Orbital]
+    std::vector< std::vector<int> > bOrbitalList;
+    for(int i = 0; i < aDim; i++)
     {
-        /* Diagonal Elements */
-        /* Since I order the orbitals the same way in the bra and ket, there should be no sign change */
-        tripletList.push_back(T(i, i , 1));
+        aOrbitalList.push_back(ListOrbitals(aStrings[i]));
+    }
+    for(int j = 0; j < bDim; j++)
+    {
+        bOrbitalList.push_back(ListOrbitals(bStrings[j]));
+    }
+    for(int i = 0; i < aDim; i++) // Loop through every matrix element
+    {
+        for(int j = 0; j < bDim; j++) // See above comment.
+        {
+            tmpDoubleD = 0;
+            /* One electron operator */
+            for(int ii = 0; ii < aOrbitalList[i].size(); ii++)
+            {
+                tmpDoubleD += Input.Integrals[std::to_string(aOrbitalList[i][ii]) + " " + std::to_string(aOrbitalList[i][ii]) + " 0 0"]; // h_ii
+            }
+            for(int jj = 0; jj < bOrbitalList[j].size(); jj++)
+            {
+                tmpDoubleD += Input.Integrals[std::to_string(bOrbitalList[j][jj]) + " " + std::to_string(bOrbitalList[j][jj]) + " 0 0"];
+            }
+            /* Two electron operator */
+            std::vector<int> abOrbitalList = aOrbitalList[i];
+            abOrbitalList.insert(abOrbitalList.end(), bOrbitalList[j].begin(), bOrbitalList[j].end());
+            for(int ij = 0; ij < abOrbitalList.size(); ij++) // Sum over n
+            {
+                for(int ijij = ij + 1; ijij < abOrbitalList.size(); ijij++) // Sum over m > n
+                {
+                    /* First term is (mm|nn). This is never zero when integrating over spin coordinates. */
+                    double tmpDoubleD1 = Input.Integrals[std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ij])];
+                    /* Second term is (mn|mn). This is zero when m and n are different spins and same spatial orbitals. */
+                    double tmpDoubleD2;
+                    if(ijij - ij >= aOrbitalList.size() && abOrbitalList[ij] == abOrbitalList[ijij]) // Means different spin orbitals and same spatial orbitals.
+                    {
+                        tmpDoubleD2 = Input.Integrals[std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ijij])];
+                    }
+                    tmpDoubleD += (tmpDoubleD1 - tmpDoubleD2);
+                }
+            }
+            tripletList.push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
+
+        }
     }
     std::cout << "FCI: ...diagonal elements complete." << std::endl;
 
@@ -438,8 +490,6 @@ int main()
         {
             Index1 = std::get<0>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<1>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]);
-            //Ham.insert(Index1, Index2) = 1;
-            //Ham.insert(Index2, Index1) = 1;
             tripletList_Private.push_back(T(Index1, Index2 , 1));
             tripletList_Private.push_back(T(Index2, Index1 , 1));
             /* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half 
@@ -494,6 +544,9 @@ int main()
     Davidson(Ham, Dim, NumberOfEV, L);
     std::cout << "...done" << std::endl;
     std::cout << "FCI: Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+
+    std::ofstream Output("test.out");
+    Output << HamDense << std::endl;
 
     return 0;
 }
