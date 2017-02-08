@@ -8,6 +8,7 @@ class InputObj
         int aOrbitals;
         int bOrbitals;
         std::map< std::string, double > Integrals;
+        std::string OutputName;
     private:
         std::string InputName;
 };

@@ -5,40 +5,12 @@
 #include <map>
 #include "ReadInput.h"
 
-// class ReadInput(int &aElectrons, int &aOrbitals, int &bElectrons, int &bOrbitals)
-// {
-//     std::cout << "Enter input filename:" << std::endl;
-//     std::string InputName;
-//     std::cin >> InputName;
-//     std::ifstream Input(InputName.c_str());
-
-//     std::vector<double> tmpVec(4);
-//     int 
-//     while(Input >> tmpVec[0] >> tmpVec[1] >> tmpVec[2] >> tmpVec[3])
-//     {
-//         Molecule.push_back(tmpVec);
-//     }
-//     return 0;
-// }
-
-// class InputObj
-// {
-//     public:
-//         void GetInputName();
-//         void Set();
-//     private:
-//         int aElectrons;
-//         int bElectrons;
-//         int aOrbitals;
-//         int bOrbitals;
-//         std::string InputName;
-//         std::map< std::string, double > Integrals;
-// };
-
 void InputObj::GetInputName()
 {
     std::cout << "FCI: Enter input filename:\nFCI: ";
     std::cin >> InputName;
+    std::cout << "FCI: Enter output filename:\nFCI: ";
+    std::cin >> OutputName;
 }
 
 void InputObj::Set()

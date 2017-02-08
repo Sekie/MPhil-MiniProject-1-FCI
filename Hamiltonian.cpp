@@ -261,8 +261,6 @@ int main()
     int bOrbitals = Input.bOrbitals;
     int NumberOfEV = 2;
     int L = NumberOfEV * 2;
-    // int aVirtual = aOrbitals - aElectrons;
-    // int bVirtual = bOrbitals - bElectrons;
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
@@ -349,8 +347,11 @@ int main()
        the alpha elements. */
 
     /* Diagonal Elements */
-    /* Since I order the orbitals the same way in the bra and ket, there should be no sign change */
+    /* Since I order the orbitals the same way in the bra and ket, there should be no sign change. There is a one electron
+       component (single particle Hamiltonian), two electron component (coulombic repulsion), and zero electron component
+       (nuclear repulsion). The nuclear repulsion term only appears in the diagonal. */
     double tmpDoubleD;
+    double NuclearEnergy = Input.Integrals["0 0 0 0"]; // Nuclear repulsion, will shift total energy and needs to be added to diagonal.
     std::vector< std::vector<int> > aOrbitalList; // [Determinant Number][Occupied Orbital]
     std::vector< std::vector<int> > bOrbitalList;
     for(int i = 0; i < aDim; i++)
@@ -366,6 +367,8 @@ int main()
         for(int j = 0; j < bDim; j++) // See above comment.
         {
             tmpDoubleD = 0;
+            /* Zero electron operator */
+            tmpDoubleD += NuclearEnergy; // Nuclear potential.
             /* One electron operator */
             for(int ii = 0; ii < aOrbitalList[i].size(); ii++)
             {
@@ -382,19 +385,6 @@ int main()
             {
                 for(int ijij = ij + 1; ijij < abOrbitalList.size(); ijij++) // Sum over m > n
                 {
-                    // /* First term is (mm|nn). This is never zero when integrating over spin coordinates. */
-                    // double tmpDoubleD1 = Input.Integrals[std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ij])];
-                    // /* Second term is (mn|mn). This is zero when m and n are different spins and same spatial orbitals. */
-                    // double tmpDoubleD2;
-                    // if(ijij != ij && abOrbitalList[ij] == abOrbitalList[ijij]) // Means different spin orbitals and same spatial orbitals.
-                    // {
-                    //     tmpDoubleD2 = 0;
-                    // }
-                    // else
-                    // {
-                    //     tmpDoubleD2 = Input.Integrals[std::to_string(abOrbitalList[ijij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ij]) + " " + std::to_string(abOrbitalList[ijij])];
-                    // }
-                    // tmpDoubleD += (tmpDoubleD1 - tmpDoubleD2);
                     bool n_isAlpha = true;
                     bool m_isAlpha = true;
                     if(ij > aElectrons - 1) n_isAlpha = false;
@@ -403,7 +393,6 @@ int main()
                 }
             }
             tripletList.push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
-
         }
     }
     std::cout << "FCI: ...diagonal elements complete." << std::endl;
@@ -543,8 +532,12 @@ int main()
 
     std::cout << "FCI: ...elements differing by one spin-orbital complete." << std::endl;
 
-    /* Now Group 3. The elements of the matrix for two differences, exclusively alpha or beta spin-orbitals, has the same
-       matrix form as before. We have to loop through the other spins having no differences. */
+    /* Now Group 2. The elements of the matrix for two differences, exclusively alpha or beta spin-orbitals, has the same
+       matrix form as before. We have to loop through the other spins having no differences. 
+       The notation used to denote the bra and ket is
+       <...mn...|
+       |...pq...>
+       and the matrix element is <mn||pq> */
     #pragma omp parallel for
     for(int i = 0; i < aDoubleDifference.size(); i++)
     {
@@ -552,11 +545,18 @@ int main()
         int Index1, Index2;
         for(int j = 0; j < bDim; j++)
         {
+            /* This case is easier than the previous cases in that we do not need to obtain the list of similar orbitals,
+               we only need to calculate the two electron integral involving the two differing orbitals and we know that
+               both of these orbitals hold alpha electrons. */
+            double tmpDouble;
+            tmpDouble = TwoElectronIntegral(std::get<3>(aDoubleDifference[i])[0], std::get<3>(aDoubleDifference[i])[1], std::get<3>(aDoubleDifference[i])[2], std::get<3>(aDoubleDifference[i])[3], true, true, true, true, Input.Integrals);
+            // The four electron differences, all of them alpha electrons.
+            
             Index1 = std::get<0>(aDoubleDifference[i]) + j * aDim;
             Index2 = std::get<1>(aDoubleDifference[i]) + j * aDim;
 
-            tripletList_Private.push_back(T(Index1, Index2 , 1));
-            tripletList_Private.push_back(T(Index2, Index1 , 1));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
         }
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
@@ -569,11 +569,15 @@ int main()
 
         for(int j = 0; j < aDim; j++)
         {
+            double tmpDouble;
+            tmpDouble = TwoElectronIntegral(std::get<3>(bDoubleDifference[i])[0], std::get<3>(bDoubleDifference[i])[1], std::get<3>(bDoubleDifference[i])[2], std::get<3>(bDoubleDifference[i])[3], false, false, false, false, Input.Integrals);
+            // The four electron differences, all of them beta electrons.
+
             Index1 = std::get<0>(bDoubleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bDoubleDifference[i]) * aDim + j;
 
-            tripletList_Private.push_back(T(Index1, Index2 , 1));
-            tripletList_Private.push_back(T(Index2, Index1 , 1));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
         }
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
@@ -588,10 +592,16 @@ int main()
         int Index1, Index2;
         for(int j = 0; j < bSingleDifference.size(); j++)
         {
+            double tmpDouble;
+            tmpDouble = TwoElectronIntegral(std::get<3>(aSingleDifference[i])[0], std::get<3>(bSingleDifference[j])[0], std::get<3>(aSingleDifference[i])[1], std::get<3>(bSingleDifference[j])[1], true, false, true, false, Input.Integrals);
+            /* There is one alpha and one beta orbital mismatched between the bra and ket. According to the formula, we put the bra unique orbitals in first,
+               which are the first two arguments, the first one alpha and the second one beta. Then the next two arguments are the unique orbitals
+               of the ket. We know whether these electrons are alpha or beta. */
             Index1 = std::get<0>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<1>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]);
-            tripletList_Private.push_back(T(Index1, Index2 , 1));
-            tripletList_Private.push_back(T(Index2, Index1 , 1));
+            // Note that the sign is the product of the signs of the alpha and beta strings. This is because we can permute them independently.
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             /* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half 
                of the upper triangle. In particular, the upper half of each beta block in upper triangle of the full matrix
                are the only nonzero elements. We want the whole beta block in the upper triangle of the full matrix to be
@@ -616,8 +626,8 @@ int main()
             Index1 = std::get<1>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<0>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]); // Note that first and second are switched for alpha here.
 
-            tripletList_Private.push_back(T(Index1, Index2 , 1));
-            tripletList_Private.push_back(T(Index2, Index1 , 1));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             // std::cout << Index1 << "\t" << Index2 << std::endl;
         }
         #pragma omp critical
@@ -645,8 +655,8 @@ int main()
     std::cout << "...done" << std::endl;
     std::cout << "FCI: Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
 
-    std::ofstream Output("test.out");
-    Output << HamDense << std::endl;
+    std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
+    OutputHamiltonian << HamDense << std::endl;
 
     return 0;
 }
