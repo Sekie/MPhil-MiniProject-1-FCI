@@ -49,7 +49,7 @@ std::vector< Eigen::VectorXd > Reorthogonalize(std::vector< Eigen::VectorXd > BV
    The following is the Davidson algorithm to diagonalize a matrix.
    The formulation is taken directly from Lui's paper and his steps are marked in the program. 
 */
-void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) // The Hamiltonian, the dimension of the Hamiltonian, the number of eigenvalues we want to find (Lui calls this M), and the starting size of the subspace.
+void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV) // The Hamiltonian, the dimension of the Hamiltonian, the number of eigenvalues we want to find (Lui calls this M), and the starting size of the subspace.
 {
     std::vector< Eigen::VectorXd > BVectors; // This holds the basis of our subspace. We add to this list each iteration.
 
@@ -84,12 +84,6 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
     int MAX_STEPS = 100000; // Not important, should converge before reaching this. Can be hard coded.
     for(int Step = 0; Step < MAX_STEPS; Step++)
     {
-        if(L > Dim) // This means we have a complete basis. The solution should be exact.
-        {
-            std::cout << "FCI: The subspace dimension has surpassed dimension of whole space." << std::endl;
-            break;
-        }
-
         std::cout << "FCI: Davidson iteration " << Step + 1 << std::endl; // To show us that something is happening.
 
         std::vector< Eigen::VectorXd > HbVectors; // Hamiltonian applied to the b vectors. Better to store these since we need them later.
@@ -145,7 +139,10 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
         if(NumberFound == NumberOfEV) // This means we have found all the eigenvalues we wanted to find, and we can exit the loop.
         {
             std::cout << "FCI: All eigenvalues found. Terminating loop." << std::endl;
-            /* Something to hold eigensystem? */
+            for(int k = 0; k < NumberOfEV; k++)
+            {
+                DavidsonEV.push_back(EigensystemG.eigenvalues()[k]);
+            }
             break;
         }
 
@@ -181,6 +178,16 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L) /
 
         /***** Step 7 *****/
         L += m;
+
+        if(L > Dim) // This means we have a complete basis. The solution should be exact.
+        {
+            std::cout << "FCI: The subspace dimension has surpassed dimension of whole space." << std::endl;
+            for(int k = 0; k < NumberOfEV; k++)
+            {
+                DavidsonEV.push_back(EigensystemG.eigenvalues()[k]);
+            }
+            break;
+        }
 
         if(Step + 1 == MAX_STEPS) // We made it to the end without exhausting the basis or finding all eigenvectors. Something is wrong.
         {

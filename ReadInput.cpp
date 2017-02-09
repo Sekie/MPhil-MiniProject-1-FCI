@@ -13,6 +13,25 @@ void InputObj::GetInputName()
     std::cin >> OutputName;
 }
 
+/*****                                    FORMAT OF THE INPUT FILE                                 *****/
+/* The input file is taken from the integrals computed in QChem (version 4.4). To obtain these integrals,
+   the line "CORRELATION idump" must be added to the %rem section of the QChem input. This outputs a list
+   of integrals in the format 
+                (ij|kl)     i   j   k   l
+   in the file titled "INTDUMP". Further modification must be made to this file in order to use it in my
+   program. The first two lines must be deleted and the following entered (separated by spaces)
+            Number of alpha electrons
+            Number of orbitals to be occupied by the alpha electrons
+            Number of beta electrons
+            Number of orbitals to be occupied by the beta electrons
+   As an example, here is the first few lines of an input file for H2, which has one alpha and one beta 
+   electron and a space of four orbitals.
+            1 4 1 4
+                0.64985185942031   1   1   1   1
+                0.16712550470738   1   3   1   1
+                0.080102886434995  1   2   1   2
+                0.07936780580498   1   4   1   2
+                (And the rest of the integrals)                                                        */
 void InputObj::Set()
 {
     std::ifstream InputFile(InputName.c_str());

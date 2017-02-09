@@ -259,11 +259,11 @@ int main()
     int bElectrons = Input.bElectrons;
     int aOrbitals = Input.aOrbitals;
     int bOrbitals = Input.bOrbitals;
-    int NumberOfEV = 2;
-    int L = NumberOfEV * 2;
+    int NumberOfEV = 2; // Number of eigenvalues desired from Davidson Diagonalization
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
+    int L = Dim / 4; // Dimension of starting subspace in Davidson Diagonalization
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -350,7 +350,6 @@ int main()
     /* Since I order the orbitals the same way in the bra and ket, there should be no sign change. There is a one electron
        component (single particle Hamiltonian), two electron component (coulombic repulsion), and zero electron component
        (nuclear repulsion). The nuclear repulsion term only appears in the diagonal. */
-    double tmpDoubleD;
     double NuclearEnergy = Input.Integrals["0 0 0 0"]; // Nuclear repulsion, will shift total energy and needs to be added to diagonal.
     std::vector< std::vector<int> > aOrbitalList; // [Determinant Number][Occupied Orbital]
     std::vector< std::vector<int> > bOrbitalList;
@@ -362,11 +361,13 @@ int main()
     {
         bOrbitalList.push_back(ListOrbitals(bStrings[j]));
     }
+    #pragma omp parallel for
     for(int i = 0; i < aDim; i++) // Loop through every matrix element
     {
+        std::vector<T> tripletList_Private;
         for(int j = 0; j < bDim; j++) // See above comment.
         {
-            tmpDoubleD = 0;
+            double tmpDoubleD = 0;
             /* Zero electron operator */
             tmpDoubleD += NuclearEnergy; // Nuclear potential.
             /* One electron operator */
@@ -392,8 +393,10 @@ int main()
                     tmpDoubleD += TwoElectronIntegral(abOrbitalList[ijij], abOrbitalList[ij], abOrbitalList[ijij], abOrbitalList[ij], m_isAlpha, n_isAlpha, m_isAlpha, n_isAlpha, Input.Integrals);
                 }
             }
-            tripletList.push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
+            tripletList_Private.push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
         }
+        #pragma omp critical
+        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
     std::cout << "FCI: ...diagonal elements complete." << std::endl;
 
@@ -648,12 +651,22 @@ int main()
     std::cout << " done" << std::endl;
     std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues() << std::endl;
     std::cout << "FCI: Direct Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+    
+    std::ofstream EVDirect(Input.OutputName + ".direct.ev");
+    EVDirect << "Direct Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds.\n\nThe eigenvalues found are\n" << HamEV.eigenvalues() << std::endl;
 
     Start = clock();
     std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
-    Davidson(Ham, Dim, NumberOfEV, L);
+    std::vector< double > DavidsonEV;
+    Davidson(Ham, Dim, NumberOfEV, L, DavidsonEV);
     std::cout << "...done" << std::endl;
     std::cout << "FCI: Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+    std::ofstream EVDavidson(Input.OutputName + ".davidson.ev");
+    EVDavidson << "Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds.\nThe eigenvalues are" << std::endl;
+    for(int k = 0; k < NumberOfEV; k++)
+    {
+        EVDavidson << "\n" << DavidsonEV[k];
+    }
 
     std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
     OutputHamiltonian << HamDense << std::endl;
