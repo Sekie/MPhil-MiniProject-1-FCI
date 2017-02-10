@@ -11,7 +11,7 @@
 #include "ReadInput.h"
 #include <fstream>
 
-void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L);
+void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV);
 
 int BinomialCoeff(int n, int k) // n choose k
 {
@@ -259,15 +259,24 @@ int main()
     int bElectrons = Input.bElectrons;
     int aOrbitals = Input.aOrbitals;
     int bOrbitals = Input.bOrbitals;
-    int NumberOfEV = 2; // Number of eigenvalues desired from Davidson Diagonalization
+    int NumberOfEV = Input.NumberOfEV; // Number of eigenvalues desired from Davidson Diagonalization
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
-    int L = Dim / 4; // Dimension of starting subspace in Davidson Diagonalization
+    int L = NumberOfEV + 100; // Dimension of starting subspace in Davidson Diagonalization
+    if(L > Dim)
+    {
+        L = NumberOfEV;
+    }
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
 
+    std::ofstream Output(Input.OutputName);
+    Output << "FCI Calculation\n\nInput File: " << Input.InputName << "\n\nNumber of Alpha Electrons: " << aElectrons << 
+    "\nNumber of Alpha Orbitals: " << aOrbitals << "\nNumber of Beta Electrons: " << bElectrons << "\nNumber of Beta Orbitals: "
+    << bOrbitals << "\nDimension of Space: " << aDim << " x " << bDim << " = " << Dim << "\n\nLooking for " << NumberOfEV << 
+    " solutions.\n" << std::endl;
     clock_t Start = clock();
 
     std::cout << "FCI: Generating all determinant binary representations and enumerating determinants with differences... ";
@@ -337,6 +346,7 @@ int main()
 
     std::cout << "done.\nFCI: Commencing with matrix initialization... " << std::endl;;
     Eigen::SparseMatrix<double> Ham(Dim, Dim);
+    clock_t Timer = clock();
 
     typedef Eigen::Triplet<double> T;
     std::vector<T> tripletList;
@@ -398,7 +408,9 @@ int main()
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
-    std::cout << "FCI: ...diagonal elements complete." << std::endl;
+    std::cout << "FCI: ...diagonal elements completed in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
+    Output << "Diagonal elements generated in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
+    Timer = clock();
 
     /* 
        Now we begin setting the nonzero off-diagonal elements. We separate this into three groups.
@@ -491,7 +503,7 @@ int main()
                |            |            |            |
                |            |            |            |
                |            |            |            |
-               |            |            |            |
+               |  one          |            |            |
                |____________|____________|____________|
        
        The matrix elements for bra and ket 
@@ -533,7 +545,8 @@ int main()
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
-    std::cout << "FCI: ...elements differing by one spin-orbital complete." << std::endl;
+    std::cout << "FCI: ...elements differing by one spin-orbital completed in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
+    Output << "Elements differing by one spin-orbital generated in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
 
     /* Now Group 2. The elements of the matrix for two differences, exclusively alpha or beta spin-orbitals, has the same
        matrix form as before. We have to loop through the other spins having no differences. 
@@ -637,36 +650,37 @@ int main()
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
-    std::cout << "FCI: ...elements differing by two spin-orbitals complete." << std::endl;
+    std::cout << "FCI: ...elements differing by two spin-orbitals completed in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
+    Output << "Elements differing by two spin-orbitals generated in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
 
     Ham.setFromTriplets(tripletList.begin(), tripletList.end());
 
     std::cout << "FCI: Hamiltonian initialization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+    Output << "\nHamiltonian initialization took  " << (clock() - Start) / CLOCKS_PER_SEC  << " seconds." << std::endl;
 
-    Start = clock();
+    Timer = clock();
     std::cout << "FCI: Beginning Direct Diagonalization... ";
     Eigen::MatrixXd HamDense = Ham;
     Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > HamEV;
     HamEV.compute(HamDense);
     std::cout << " done" << std::endl;
     std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues() << std::endl;
-    std::cout << "FCI: Direct Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+    std::cout << "FCI: Direct Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds." << std::endl;
     
-    std::ofstream EVDirect(Input.OutputName + ".direct.ev");
-    EVDirect << "Direct Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds.\n\nThe eigenvalues found are\n" << HamEV.eigenvalues() << std::endl;
+    Output << "\nDirect Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds.\n\nThe eigenvalues found are\n" << HamEV.eigenvalues() << std::endl;
 
-    Start = clock();
+    Timer = clock();
     std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
     std::vector< double > DavidsonEV;
     Davidson(Ham, Dim, NumberOfEV, L, DavidsonEV);
-    std::cout << "...done" << std::endl;
-    std::cout << "FCI: Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
-    std::ofstream EVDavidson(Input.OutputName + ".davidson.ev");
-    EVDavidson << "Davidson Diagonalization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds.\nThe eigenvalues are" << std::endl;
+    std::cout << "FCI: ...done" << std::endl;
+    std::cout << "FCI: Davidson Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds." << std::endl;
+    Output << "\nDavidson Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds.\nThe eigenvalues are" << std::endl;
     for(int k = 0; k < NumberOfEV; k++)
     {
-        EVDavidson << "\n" << DavidsonEV[k];
+        Output << "\n" << DavidsonEV[k];
     }
+    Output << "\nTotal running time: " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
 
     std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
     OutputHamiltonian << HamDense << std::endl;

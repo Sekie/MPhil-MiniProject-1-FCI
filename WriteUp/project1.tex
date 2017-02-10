@@ -74,12 +74,21 @@
 %%   sort&compress   -  like sort, but also compresses numerical citations
 %%   compress - compresses without sorting
 %%
-%% \biboptions{comma,round}
+\biboptions{super}
 
 % \biboptions{}
 
 \usepackage{physics}
 \usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{mathtools}
+%\usepackage{algorithm}
+\usepackage[]{algorithm2e}
+
+\newcommand{\ai}{\textit{ab-initio}}
+\newcommand{\ssth}{\textsuperscript{th}}
+\newcommand{\ham}{\hat{\mathcal{H}}}
 
 
 \journal{MPhil in Scientific Computing}
@@ -122,7 +131,7 @@
 CB2 1EW}
 
 \begin{abstract}
-ABSTRACT
+Tom Brady is the G.O.A.T.
 \end{abstract}
 
 \end{frontmatter}
@@ -133,34 +142,267 @@ ABSTRACT
 % \linenumbers
 
 %% main text
-\section{Introduction}
-The method of configuration interaction (CI) is ubiquitous in computational chemistry with a rich and varied history. Expanding upon the Hartree-Fock (HF) equations,\cite{hartree,fock} CI introduces correlation through coupling the single HF configuration with other configurations.
+\section{Introduction} \label{sec:intro}
+The method of configuration interaction (CI) is ubiquitous in computational chemistry with a rich and varied history.\cite{shavitt} The Hartree-Fock (HF) method\cite{hartree,fock} provides a practical means to obtaining an approximation solution to the time-independent Schr\"{o}dinger Equation. However, HF approximates the true wavefunction using a single-configuration wavefunction and cannot account for correlation energy.\cite{szabo} To this end, CI includes correlation through coupling the single-configuration wavefunction with other configurations. Slater introduced the slater determinant and showed how multiple configurations could be derived.\cite{slater} These configurations are formally a complete basis for the Hilbert Space. Condon further derived the rules to calculate the elements of the Hamiltonian matrix in the basis of Slater determinants.\cite{condon} In practice, one uses a basis of either slater determinants, or a linear combination of Slater determinants that are eigenstates of spin-angular momentum called configuration state functions (CSF). A solution using all possible n-electron determinants or CSFs from a set of one-particle functions, or atomic orbitals, is called full CI (FCI). FCI gives an exact solution to Schr\"{o}dinger's Equation in that function space, but scales exponentially with system size, making practical calculations only possible for the smallest of molecules.\cite{szabo}
 
-\section{Mathematical formulae}
-\label{sect:Formulae}
-Complex formulae are easy to produce within \LaTeX{}. For example, we
-can use inline equations to define $f(x) = a_3x^3 + a_2x^2 + a_1x +
-a_0$, and then provide more complex equations such as
+Early CI calculations used a slater-type orbital (STO) basis set introduced by Slater.\cite{sto} This made it very difficult to conduct \ai\ calculations on polyatomic systems.\cite{shavitt} Later, Boys introduced gaussian-type orbitals (GTO) as a basis to significantly simplify integrals.\cite{gto} One prominent calculation in the early days of CI includes the calculation of the three lowest lying electronic states of CH$_2$ in 1960.\cite{boys-1960} This calculation was the first to predict a bent ground state geometry for CH$_2$.
+
+Much work has been dedicated to improving the efficiency and speed of CI calculations. While an FCI calculation provides a more complete solution than a calculation involving fewer configurations, it is not always feasible. However, new algorithms and computational tools have allowed for FCI calculations on systems of unprecedent sizes.\cite{bendazzoli-1995} Among these include a parellizable and vectorizable algorithm first introduced by Knowles and Handy for FCI in a determinant basis.\cite{handy-1984,handy-1988,olsen,evangelisti-1993}
+
+Rather than going to the FCI limit, the configurations included in the CI expansion are typically truncated based on how many electrons are occupying orbitals that are empty in the reference configuration. For example, the inclusion of single excitations is called CIS. The inclusion of double excitations is called CISD, and so on.\cite{szabo}  
+
+CI methods can be classified as single reference CI (SRCI) or multireference CI (MRCI). In SRCI, the CI expansion is based on one configuration, typically a HF solution. For MRCI, the expansion is based on a set of configuration references.\cite{hackmeyer-1969} Early choices for the reference configurations tended to be based on physical considerations\cite{shavitt-1974} or perturbative estimates for the most important configurations to the ground state.\cite{nesbet-1955} Later, more systematic choices were adopted. One choice is to take a set of ``active'' orbitals, typically valence orbitals, and then use the FCI expansion in the active space as a reference.\cite{cas} This method is known as complete active space (CAS). The number of references can still be too large in practice. Another approach is to put an occupancy restriction on active space orbitals, in a method called restricted active space (RAS).\cite{ras} There is active work on further restrictions,\cite{shavitt} but they will not be mentioned here.
+
+Though truncated CI allows for electronic structure calculations of much larger systems, they are not size-extensive. Only in the FCI limit is CI size-extensive, and it is for this reason coupled-cluster (CC) methods have taken over CI methods in popularity for mid-sized molecules.\cite{cc,bartlett-2007} Pople and Head-Gordon later formulated quadratic CI (QCI), which modified CI to be size-extensive\cite{qci} and has been shown to be comparable to CC methods.\cite{werner-1992}
+
+In terms of choosing CSFs, many methods exist including symmetric group methods,\cite{wigner} projection operator methods,\cite{lowdin} and unitary group methods.\cite{paldus-1974} These methods serve to construct a basis of eigenstates of total spin-angular momentum. However, no spin adaption will be done in this paper. % Basis set? Orbitals?
+
+The most expensive procedure in the CI algorithm is the diagonalization of the Hamiltonian matrix in the space of potentially millions of CSFs or determinants. However, in any CI calculation, one is typically only interested in a few lower lying solutions. Iterative methods such as the Lanczos algorithm are known to be effective for these situations.\cite{Lanczos} Davidson introduced a similar iterative algorithm that exploits the diagonal dominance of the Hamiltonian matrix to compute specific eigenvalues of the Hamiltonian without need to calculate lower eigenvalues first.\cite{davidson} Since then, a modified version of the Davidson algorithm was introduced by Lui to allow the diagonalization to find multiple eigenvalues at once.\cite{liu}
+
+This paper will discuss application of the FCI method on the BH and H$_2$O molecules, which have been previously studied using FCI.\cite{handy-1983} The Hamiltonian matrix will be constructed in a space of slater determinants and the Davidson diagonalization algorithm will be implemented. 
+
+\section{Theory}
+\subsection{Electronic Problem} \label{sec:elproblem}
+The molecular Hamiltonian, ignoring higher order effects such as relativistic or fine-structure terms, is
 \begin{equation}
-\int_0^3 f(x) \mathrm{d}x = \left[\frac{a_3}{4}x^4 + \frac{a_2}{3}x^3
-  + \frac{a_1}{2}x^2 + a_0x\right]_0^3
-\label{eqn:Taylor}
+\begin{gathered}
+\hat{\mathcal H} = - \sum_I \dfrac{1}{2M_I} \nabla_I^2 -\dfrac{1}{2} \sum_i \nabla_i^2 - \sum_{iI} \dfrac{Z_I}{|\mathbf{R}_I - \mathbf{r}_i|} \\
++ \sum_{i < j} \dfrac{1}{|\mathbf{r}_i - \mathbf{r}_j|} + \sum_{I < J} \dfrac{Z_IZ_J}{|\mathbf{R}_I - \mathbf{R}_J|}
+\end{gathered}
 \end{equation}
-If we have some derivation that should belong elsewhere, we can put it
-in an appendix such as \ref{app:quad}. We can also refer to equations
-from the main text such as the Taylor expansion \ref{eqn:Taylor}.
-\section{Pictures}
-\label{sect:Pictures}
-In this section we demonstrate the inclusion of figures. For example,
-Figure~\ref{fig:ENO1} demonstrates ENO as used to solve a linear advection
-of a top-hat function.
-\begin{figure}
+The terms in order are: nuclear kinetic energy, electronic kinetic energy, electron-nuclear attraction, electron-electron repulsion, and nuclear-nuclear repulsion. Lowercase indexes label electrons, uppercase indexes label nuclei, $\mathbf{r}_i$ denotes the cartesian coordinates of the $i$\ssth\ electron, $\mathbf{R}_I$ denotes the cartesian coordinates of the $I$\ssth\ nucleus, and $Z_I$ is the atomic number of the $I$\ssth\ nucleus. All the electron coordinates will be denoted $\mathbf{r}$ and all the nucleus coordinates will be denoted $\mathbf{R}$. The last four terms are typically defined as the electronic Hamiltonian, $\ham_e$.
+\begin{gather}
+\hat{\mathcal H} = - \sum_I \dfrac{1}{2M_I} \nabla_I^2 + \ham_e \\
+\begin{gathered}\label{eq:hame}
+\ham_e = \hat T_e + \hat V_{eN} + \hat V_{NN} + \hat V_{eN}
+\end{gathered}
+\end{gather}
+where
+\begin{subequations}
+\begin{equation}
+\hat T_e = -\dfrac{1}{2} \sum_i \nabla_i^2 
+\end{equation}
+\begin{equation}
+\hat V_{eN} = - \sum_{iI} \dfrac{Z_I}{|\mathbf{R}_I - \mathbf{r}_i|}
+\end{equation}
+\begin{equation} \label{eq:vnn}
+\hat V_{NN} = \sum_{I < J} \dfrac{Z_IZ_J}{|\mathbf{R}_I - \mathbf{R}_J|}
+\end{equation}
+\begin{equation}
+\hat V_{ee} = \sum_{i < j} \dfrac{1}{|\mathbf{r}_i - \mathbf{r}_j|}
+\end{equation}
+\end{subequations}
+
+The energy of a state is given by the eigenvalues of $\ham$. To greatly simplify the problem, the Born-Oppenheimer approximation\cite{bo} is made, which assumes that the electronic Hamiltonian can be solved at each fixed value of $\mathbf{R}$ to obtain electronic eigenstates parametrically dependent on $\mathbf{R}$.
+\begin{equation}\label{eq:elproblem}
+\ham_e \ket{\psi(\mathbf{r};\mathbf{R})} = E(\mathbf{R}) \ket{\psi(\mathbf{r};\mathbf{R})}
+\end{equation}
+where $E$ is the electronic energy and $\ket{\psi}$ are the electronic eigenstates. For focus of this paper will be solving Equation \eqref{eq:elproblem} for $E$ and $\ket{\psi}$.
+
+\subsection{FCI Wavefunction} \label{sec:wf}
+Equation \eqref{eq:elproblem} can be solved in theory by expanding $\ket{\psi}$ in a complete basis. This basis will be generated from a single reference determinant obtained from an HF calculation. 
+
+The HF method\cite{hartree,fock,roothaan} minimizes the functional
+\begin{equation}
+E[\phi_1, \ldots, \phi_n] = \dfrac{\bra{\psi^\prime}\ham_e\ket{\psi^\prime}}{\bra{\psi^\prime}\ket{\psi^\prime}}
+\end{equation}
+where $n$ is the number of electrons in the system, $\ket{\phi_i}$ are spin orbitals constrained to be orthonormal, and 
+\begin{equation} \label{eq:det}
+\psi^\prime(\mathbf{r}) = \dfrac{1}{\sqrt{n!}}\det\begin{pmatrix} \phi_1(\mathbf{r}_1) & \cdots & \phi_n(\mathbf{r}_1) \\ \vdots & \ddots & \vdots \\
+\phi_1(\mathbf{r}_n) & \cdots & \phi_n(\mathbf{r}_n) \end{pmatrix}
+\end{equation}
+$\ket{\psi^\prime}$ in this form is referred to as a slater determinant\cite{slater} and will be denoted more succinctly as
+\begin{equation}
+\ket{\psi^\prime} = |\phi_1 \cdots \phi_n|
+\end{equation}
+
+From the HF method,\cite{roothaan} multiple spin orbitals can be obtained. The $n$ lowest energy spin orbitals are referred to as occupied orbitals. Denote the slater determinant formed by only occupied orbitals as $\ket{\psi_0}$. Higher energy spin orbitals are referred to as virtual orbitals, and put $m$ as the total number of virtual orbitals. Denote $\ket{\psi_{ij\ldots}^{ab\ldots}}$ as the slater determinant formed from the occupied spin orbitals, but replacing occupied spin orbitals $i, j, \ldots$ with virtual spin orbitals $a, b, \ldots$ Note that there are $\binom{n+m}{n}$ possible slater determinants, all orthonormal. The FCI method searches for solutions to Equation $\ref{eq:elproblem}$ within the determinant space spanned by all $\binom{n+m}{n}$ determinants. The $k$\ssth\ solution to Equation $\eqref{eq:elproblem}$ is written as an expansion in this determinant space
+\begin{equation}\label{eq:fciwf}
+\begin{gathered}
+\ket{\psi^{(k)}} = c_0^{;k}\ket{\psi_0} + \sum_{\mathclap{\substack{i\in\text{occ} \\ a \in\text{vir}}}} c_i^{a;k}\ket{\psi_i^a} + \\
+\sum_{\mathclap{\substack{i < j; i, j \in\text{occ} \\ a < b; a, b \in\text{vir}}}} c_{ij}^{ab;k}\ket{\psi_{ij}^{ab}} 
++ \cdots
+\end{gathered}
+\end{equation}
+Truncation at the first term gives the HF wavefunction. Truncation at the second term gives the CIS wavefunction. Truncation at the third term gives the CISD wavefunction, and so on. Inclusion of all $\binom{n+m}{n}$ terms gives the FCI wavefunction.
+
+\subsection{Slater-Condon Rules} \label{sec:condonrules}
+In order to solve Equation \eqref{eq:elproblem} using Equation \eqref{eq:fciwf}, the Hamiltonian matrix, $\mathcal H$ has to be diagonalized in the space of determinants. The matrix elements of $\mathcal H$ are given by
+\begin{equation} \label{eq:hmat}
+\mathcal H_{ij} = \bra{\psi_i}\ham_e\ket{\psi_j}
+\end{equation}
+where $\ket{\psi_i}$ now simply denote different slater determinants within the determinant space.
+
+These matrix elements can be reduced to simpler integrals as summarized by the Slater-Condon rules.\cite{condon} First, $\ham_e$ is expressed as sum of one, two, and zero electron operators.
+\begin{equation}
+\ham_e = \sum_{i=1}^n \hat h_i + \sum_{i < j}^n \hat g_{ij} + \hat V_{NN}
+\end{equation}
+where
+\begin{subequations}
+\begin{equation} \label{eq:h}
+\hat h_i = -\dfrac{1}{2} \nabla_i + \sum_I \dfrac{Z_I}{|\mathbf{R}_I - \mathbf{r}_i|}
+\end{equation}
+\begin{equation} \label{eq:g}
+\hat g_{ij} = \dfrac{1}{|\mathbf{r}_i - \mathbf{r}_j|}
+\end{equation}
+\end{subequations}
+and $\hat V_{NN}$ is defined in Equation \eqref{eq:vnn}.
+
+The Slater-Condon rules are now presented. Their derivations are listed in \ref{app:slatercondon}. Consider two slater determinants $\ket{\psi_1}$ and $\ket{\psi_2}$ with maximum matching orbitals. This means that spin orbitals shared by both determinants are ordered so that they are in the same position within both determinants, with the caveat that each transpose changes the sign of the determinant. In the following equations, $i$ and $j$ indexes shared orbitals. The notation $(kl|pq)$ is also defined as
+\begin{equation}
+(kl|pq) = \int \phi_k^*(\mathbf{r})\phi_p^*(\mathbf{r}^\prime) \frac{1}{|\mathbf{r}-\mathbf{r}^\prime|} \phi_l(\mathbf{r}) \phi_q(\mathbf{r}^\prime) \mathrm{d}\mathbf{r}\mathrm{d}\mathbf{r}^\prime 
+\end{equation}
+The Slater-Condon rules are:
+\begin{enumerate}
+\begin{subequations}
+\item If $\ket{\psi_1}$ and $\ket{\psi_2}$ are identical, then
+\begin{equation} \label{eq:sc0}
+\begin{gathered}
+\bra{\psi_1} \ham_e \ket{\psi_2} = \sum_{i=1}^n \bra{\phi_i} \hat h \ket{\phi_i} \\ + \sum_{j > i}^n \left[ (jj|ii) - (ji|ji) \right] + V_{NN}
+\end{gathered}
+\end{equation}
+
+\item If $\ket{\psi_1}$ and $\ket{\psi_2}$ differ by one spin orbital, then
+\begin{align*}
+\ket{\psi_1} = |\cdots\phi_k\cdots| \\ 
+\ket{\psi_2} = |\cdots\phi_p\cdots| 
+\end{align*}
+\begin{equation} \label{eq:sc1}
+\begin{split}
+\bra{\psi_1} \ham_e \ket{\psi_2} = & \bra{\phi_k} \hat h \ket{\phi_p} \\ & + \sum_{i=0}^n \left[ (kp|ii) - (ki|ip) \right]
+\end{split}
+\end{equation}
+
+\item If $\ket{\psi_1}$ and $\ket{\psi_2}$ differ by two spin orbitals, then
+\begin{align*}
+\ket{\psi_1} = |\cdots\phi_k\phi_l\cdots| \\ 
+\ket{\psi_2} = |\cdots\phi_p\phi_q\cdots| 
+\end{align*}
+\begin{equation} \label{eq:sc2}
+\bra{\psi_1} \ham_e \ket{\psi_2} = (kp|lq) - (kq|lp)
+\end{equation}
+
+\item If $\ket{\psi_1}$ and $\ket{\psi_2}$ differ by three or more spin orbitals, then
+\begin{equation} \label{eq:sc3}
+\bra{\psi_1} \ham_e \ket{\psi_2} = 0
+\end{equation}
+\end{subequations}
+\end{enumerate}
+
+To calculate these integrals, the spin orbitals are approximated by a sum of gaussian type functions,\cite{gto} the number and form of which depending on the type of basis desired. The details of this calculation will be discussed in Section \ref{sec:integrals}.
+
+\section{Computational Details}
+\subsection{Integrals} \label{sec:integrals}
+The integrals presented in Equations \eqref{eq:sc0} to \eqref{eq:sc3} were calculated using the electronic structure package, Q-Chem 4.4.1.\cite{qchem} Using these integrals, the FCI ground state energy was calculated for one geometry of BH and three geometries of H$_2$O. These geometries are listed in Table \ref{tab:geo}
+
+For BH, the bond length was set to the equilibrium bond length of 1.2282 \AA, determined from an optimization using a QCISD(TQ)/6-31+G** calculation.\cite{cccbdb} A basis of 6-31+G** was used for the calculation of the integrals. 
+
+For H$_2$O, the HOH angle was set to 110.565$^\circ$ and O---H bond lengths were varied between three different values listed in Table \ref{tab:geo}. To calculate the integrals at each geometry, a DZ quality basis was used. These geometries and the basis match those used in a previous work.\cite{handy-1983}
+
+\begin{table}
 \centering
-%\includegraphics[width=3in]{ENOTest3b.png}
-\caption{Demonstration of ENO as used to solver linear-advection of a
-  top-hat function.}
-\label{fig:ENO1}
-\end{figure}
+\begin{tabular}{l|c}
+\hline\hline
+& Bond Length (\AA) \\ \hline
+BH & 1.2282 \\ \hline
+H$_2$O (1) & 0.9755\\
+H$_2$O (2) & 1.4633\\
+H$_2$O (3) & 1.9510\\ \hline\hline
+\end{tabular}
+\caption{The geometries of BH and H$_2$O used in the calculations. Bond length refers to the B---H bond for BH and both O---H bonds for H$_2$O. The HOH bond angle is set at 110.565$^\circ$.}
+\label{tab:geo}
+\end{table}
+
+\subsection{Davidson Diagonalization}
+The size of the determinant space can be over one million determinants. The cost of diagonalizing the full Hamiltonian matrix in Equation \eqref{eq:hmat} is usually prohibitively large. In this study, the package Eigen for C++ was utilized to diagonalize the full Hamiltonian.\cite{eigen} Eigen uses a QR iterative algorithm that has a cubic cost and cubic convergence.\cite{qr}
+
+Because of the nature of our problem, a full diagonalization is not necessary. The eigenvalues of Equation \eqref{eq:elproblem} are desired, but typically only the lowest lying eigenvalues are desired. Davidson introduced an iterative eigenvalue algorithm that was capable of converging to a chosen, the lowest for example, eigenvalue in a significantly shorter time.\cite{davidson} Liu later adapted the algorithm to converge to multiple eigenvalues at once.\cite{liu} Liu's formulation is presented in Algorithm \ref{alg:davidson} and this is the formulation that has been implemented in this work.
+
+\begin{algorithm}
+ Read in $N \times N$ Hamiltonian matrix, $H$\;
+ 
+ Choose a set of orthonormal trial vectors $B = \{\mathbf{b}^i\}$ with $i = 1,  \ldots, L$ where $L \geq M$\;
+ 
+ $EVFound \leftarrow \varnothing $\;
+ 
+ \While{$|EVFound| < M$}{
+  Set $G_{ij} \leftarrow \mathbf{b}^{iT} H \mathbf{b}^j$\;
+  Find eigenvalues $\lambda_k$ and eigenvectors $\mathbf{a}_k$ of $G$ and keep the $M$ lowest eigenvalues\;
+
+  \For{k = 1, \ldots, M}
+  {
+  	$\mathbf{d}^k \leftarrow \sum_i^L a_i^k(A - \lambda^k) \mathbf{b}^i$\;
+  	\If{$\mathbf{d}^k \cdot \mathbf{d}^k < 10^{-3}$}
+  	{
+  		$EVFound = EVFound \cup \{(\lambda^k, \mathbf{a}^k)\}$\;
+  	}
+  }
+  
+  \If{$|EVFound| < M$}
+  {
+  	$EVFound = \varnothing$\;
+  }
+    
+  \For{k = 1, \ldots, M}
+  {
+  	\For{I = 1, \ldots, N}
+  	{
+  		$f_I^k = (\lambda^k - H_{II})^{-1}d_I^k$\;
+  	}
+  	Form residual vector $\mathbf{f}^k = (f_1^k, \ldots, f_N^k)$\;
+  }
+  
+  
+  Orthonormalize $\mathbf{f}^1$ with $B$\;
+  $B \leftarrow B \cup \{\mathbf{f}^1\}$\;
+  $m \leftarrow 1$\;
+  
+  \For{k = 2, \ldots, M}
+  {
+  	Orthogonalize $\mathbf{f}^k$ with $B$\;
+  	\If{$\mathbf{f}^k \cdot \mathbf{f}^k > 10^{-3}$}
+  	{
+  		Normalize $\mathbf{f}^k$\;
+  		$B \leftarrow B \cup \{\mathbf{f}^k\}$\;
+  		$m \leftarrow m + 1$\;
+  		
+  	}
+  }
+  Reorthonormalize $B$\;
+  $L \leftarrow L + m$\;
+ }
+ $EVFound$ contains the desired eigenpairs\;
+
+\caption{The Davidson algorithm to find the $M$ lowest eigenvalues of a matrix.} 
+\label{alg:davidson}
+\end{algorithm}
+
+\section{Results}
+\subsection{BH} \label{sec:bhresults}
+%Talk about number of electrons and orbitals
+The results are compared to a QCISD(TQ) calculation using a 6-31+G** basis.\cite{cccbdb}
+\begin{table}
+\begin{tabular}{l|cc} \hline\hline
+& Previous Work\cite{cccbdb} & This Work \\ \hline
+Energy ($E_h$) & -25.215228 & \\ \hline\hline
+\end{tabular}
+\caption{Calculated ground state energies of BH at the geometry specified in Table \ref{tab:geo}.}
+\label{tab:bhresults}
+\end{table}
+
+\subsection{H$_2$O} \label{sec:h2oresults}
+
+\begin{table}
+\begin{tabular}{l|cc} \hline\hline
+& Previous Work\cite{handy-1983} & This Work \\ \hline
+Geometry 1 & -76.157866 & \\ 
+Geometry 2 & -76.014521 & \\
+Geometry 3 & -75.905247 & \\\hline\hline
+\end{tabular}
+\caption{Calculated ground state energies in hartrees of H$_2$O at geometries specified in Table \ref{tab:geo}.}
+\end{table}
+
+
 \section{Conclusions}
 \label{sect:Concl}
 In which we conclude that LaTeX (or \LaTeX) is very useful for
@@ -173,9 +415,10 @@ and the effects of caffeine on my ability to produce this report on time.
 %% The Appendices part is started with the command \appendix;
 %% appendix sections are then done as normal sections
 \appendix
+\section{Enumeration of Slater Determinants used in this Study} \label{app:det}
 
-\section{On the Derivation of the Quadratic Formula}
-\label{app:quad}
+\section{Derivation of the Slater-Condon Rules}
+\label{app:slatercondon}
 The derivation of the quadratic formula is something that would not
 fit well within a paper as it would interrupt the flow of the argument
 therein. However, for those students who need a refresher on how the
@@ -197,7 +440,7 @@ and so on. The actual algebra is left as an exercise for the reader.
 %% References with bibTeX database:
 
 \bibliographystyle{elsarticle-num}
-\bibliography{references.bib}
+\bibliography{references}
 
 %% Authors are advised to submit their bibtex database files. They are
 %% requested to list a bibtex style file in the manuscript if they do

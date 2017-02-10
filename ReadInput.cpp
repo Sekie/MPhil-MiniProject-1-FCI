@@ -24,9 +24,10 @@ void InputObj::GetInputName()
             Number of orbitals to be occupied by the alpha electrons
             Number of beta electrons
             Number of orbitals to be occupied by the beta electrons
+            Number of solutions desired from Davidson Diagonalization
    As an example, here is the first few lines of an input file for H2, which has one alpha and one beta 
-   electron and a space of four orbitals.
-            1 4 1 4
+   electron and a space of four orbitals and we are looking for 2 solutions.
+            1 4 1 4 2
                 0.64985185942031   1   1   1   1
                 0.16712550470738   1   3   1   1
                 0.080102886434995  1   2   1   2
@@ -35,10 +36,14 @@ void InputObj::GetInputName()
 void InputObj::Set()
 {
     std::ifstream InputFile(InputName.c_str());
-    InputFile >> aElectrons >> aOrbitals >> bElectrons >> bOrbitals;
+    InputFile >> aElectrons >> aOrbitals >> bElectrons >> bOrbitals >> NumberOfEV;
     if(aElectrons > aOrbitals || bElectrons > bOrbitals)
     {
         std::cerr << "FCI: ***** ERROR *****\nFCI: More electrons than orbitals. Check input file." << std::endl;
+    }
+    if(NumberOfEV < 1)
+    {
+        NumberOfEV = 1;
     }
     double tmpDouble;
     int tmpInt1, tmpInt2, tmpInt3, tmpInt4;
