@@ -391,6 +391,7 @@ Energy ($E_h$) & -25.215228 & \\ \hline\hline
 \end{table}
 
 \subsection{H$_2$O} \label{sec:h2oresults}
+The results are compared to a previous study by Knowles and Handy.\cite{handy-1983} In that study, the same geometry and basis (DZ) was used as was used in this study.
 
 \begin{table}
 \begin{tabular}{l|cc} \hline\hline
@@ -419,15 +420,84 @@ and the effects of caffeine on my ability to produce this report on time.
 
 \section{Derivation of the Slater-Condon Rules}
 \label{app:slatercondon}
-The derivation of the quadratic formula is something that would not
-fit well within a paper as it would interrupt the flow of the argument
-therein. However, for those students who need a refresher on how the
-quadratic formula is derived, we give full details here:\par
-Assume that we have
+For the derivation, the slater determinant will be written in the form
 \begin{equation}
-p(x) = ax^2 + bx + c
+|\phi_1 \ldots \phi_n| = \dfrac{1}{\sqrt{n!}}\sum_{\sigma\in S_n} \text{sign}(\sigma) \phi_{\sigma(1)}(\mathbf{r}_1) \cdots \phi_{\sigma(n)}(\mathbf{r}_n)
 \end{equation}
-and so on. The actual algebra is left as an exercise for the reader.
+where $S_n$ denotes the permutation group of $n$ elements and sign($\sigma$) is +1 for even permutations, -1 for odd permutations. The proofs are presented below, proved in the same order as presented in Section \ref{sec:condonrules} and using the same notation.
+
+\begin{enumerate}
+	\item For the one element operator, 
+	\begin{gather}
+	\bra{\psi_1}\sum_i\hat h_i\ket{\psi_1}\\ 
+	\begin{gathered}
+	= \frac{1}{n!}\sum_{\sigma\sigma^\prime \in S_n} \sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime)
+	 \\ \times \bra{\phi_{\sigma(1)} \cdots \phi_{\sigma(n)}}\hat h_i \ket{\phi_{\sigma^\prime(1)} \cdots \phi_{\sigma^\prime(n)}} 
+	\end{gathered} \\
+	 \begin{gathered} = \frac{1}{n!}\sum_{\sigma\sigma^\prime \in S_n} \sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	 \times \bra{\phi_{\sigma(i)}} \hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{k\neq i}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+	 \end{gathered}
+	\end{gather}
+	Because the spin orbitals are orthonormal, the product is zero when $\sigma \neq \sigma^\prime$ and is unity otherwise.
+	\begin{gather}
+	= \frac{1}{n!} \sum_{\sigma \in S_n} \text{sign}(\sigma)^2\sum_{i=1}^n \bra{\phi_{\sigma(i)}} \hat h_i \ket{\phi_{\sigma(i)}}
+	\end{gather}
+	The sign term squares to one always. For any $\sigma$, the second sum will be the same and there are $n!$ possible $\sigma$.
+	\begin{gather}
+	= \sum_{i=1}^n \bra{\phi_i}\hat h_i \ket{\phi_i}
+	\end{gather}
+	
+	For the two electron operator,
+	\begin{gather}
+	\bra{\psi_1}\sum_{i<j}^n\hat g_{ij}\ket{\psi_1} \\
+	\begin{gathered}
+	\frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i < j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	\times \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma^\prime(i)}\phi_{\sigma^\prime(j)}} \\
+	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+	\end{gathered}
+	\end{gather}
+	The third line is zero unless $\sigma$ and $\sigma^\prime$ agree for all $k$ not equal to $i$ or $j$. In this case, $\sigma$ and $\sigma^\prime$ may agree for $i$ and $j$, or switch so that $\sigma(i) = \sigma^\prime(j)$. In the latter case, the relative sign of $\sigma^\prime$ is opposite as well.
+	\begin{gather}
+	\begin{gathered}
+	= \frac{1}{n!} \sum_{\sigma \in S_n} \text{sign}(\sigma) \\ \times \sum_{i < j}^n \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right]
+	\end{gathered} \\
+	\begin{gathered}
+	= \frac{n!}{n!} \sum_{i < j}^n \left[ \bra{\phi_i\phi_j}\hat g_{ij} \ket{\phi_i\phi_j} - \right.\\ \left. \bra{\phi_i\phi_j}\hat g_{ij} \ket{\phi_j\phi_i} \right]
+	\end{gathered} \\
+	= \sum_{i < j}^n \left[ (ii|jj) - (ij|ij) \right]
+	\end{gather}
+	Finally, the zero electron operator gives
+	\begin{equation}
+	\bra{\psi_1}\hat V_{NN} \ket{\psi_1} = V_{NN} \bra{\psi_1}\ket{\psi_1} = V_{NN}
+	\end{equation}
+	
+	\item For the one electron operator
+	\begin{gather}
+	\begin{gathered}
+	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma \in S_n^k}\sum_{\sigma^\prime \in S_n^p}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	\times \bra{\cdots\phi_{\sigma(k)}\cdots} \hat h_i \ket{\cdots\phi_{\sigma^\prime(p)}\cdots}
+	\end{gathered}
+	\end{gather}
+	where $S_n^k$ and $S_n^p$ are the permutation group of $n$ elements, both containing the same elements except for $k$ and $p$ respectively.
+	\begin{gather}
+	\begin{gathered}
+	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma \in S_n^k}\sum_{\sigma^\prime \in S_n^p}\sum_{i\neq k,p}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{j\neq i, k, p}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma^\prime(j)}} \\ \times \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(p)}}
+	\end{gathered}
+	\end{gather}
+	The product of expectations, or third term above is zero except when $\sigma$ and $\sigma^\prime$ agree for all elements not equal to $i$ or the unique element in the set of $n$ elements. This means that for any choice of $\sigma$, $\sigma^\prime$ must either be equal to $\sigma$ or $\sigma^\prime(i) = \sigma(k)$, where if $k$ is the result of any of these permutations, $p$ is used instead.
+	\begin{gather}
+	\begin{gathered}
+	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma \in S_n^k}\sum_{i\neq k,p}^n \text{sign}(\sigma) \\
+	\times \left[ \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \bra{\phi_{\sigma(k)}}\ket{\phi_{p}} \right.
+	\\ \left. - \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma(i)}} \right]
+	\end{gathered}
+	\end{gather}
+	
+\end{enumerate}
+
+
+
 
 %% References
 %%

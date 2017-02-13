@@ -277,7 +277,8 @@ int main()
     "\nNumber of Alpha Orbitals: " << aOrbitals << "\nNumber of Beta Electrons: " << bElectrons << "\nNumber of Beta Orbitals: "
     << bOrbitals << "\nDimension of Space: " << aDim << " x " << bDim << " = " << Dim << "\n\nLooking for " << NumberOfEV << 
     " solutions.\n" << std::endl;
-    clock_t Start = clock();
+    // clock_t Start = clock();
+    double Start = omp_get_wtime();
 
     std::cout << "FCI: Generating all determinant binary representations and enumerating determinants with differences... ";
     for(int i = 0; i < aDim; i++)
@@ -346,11 +347,12 @@ int main()
 
     std::cout << "done.\nFCI: Commencing with matrix initialization... " << std::endl;;
     Eigen::SparseMatrix<double> Ham(Dim, Dim);
-    clock_t Timer = clock();
+    // clock_t Timer = clock();
+    double Timer = omp_get_wtime();
 
     typedef Eigen::Triplet<double> T;
     std::vector<T> tripletList;
-    tripletList.reserve(Dim);
+    //tripletList.reserve(Dim);
 
     /* The basis of the matrix is ordered by reverse lexicographic ordering (A,B) where A is the A'th  alpha orbital
        and B is the B'th beta orbital. Essentially, this means we have beta blocks and inside each block is a matrix for
@@ -408,9 +410,10 @@ int main()
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
-    std::cout << "FCI: ...diagonal elements completed in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
-    Output << "Diagonal elements generated in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
-    Timer = clock();
+    std::cout << "FCI: ...diagonal elements completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+    Output << "Diagonal elements generated in " << (omp_get_wtime() - Timer)  << " seconds." << std::endl;
+    // Timer = clock();
+    Timer = omp_get_wtime();
 
     /* 
        Now we begin setting the nonzero off-diagonal elements. We separate this into three groups.
@@ -503,7 +506,7 @@ int main()
                |            |            |            |
                |            |            |            |
                |            |            |            |
-               |  one          |            |            |
+               |            |            |            |
                |____________|____________|____________|
        
        The matrix elements for bra and ket 
@@ -545,8 +548,8 @@ int main()
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
-    std::cout << "FCI: ...elements differing by one spin-orbital completed in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
-    Output << "Elements differing by one spin-orbital generated in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
+    std::cout << "FCI: ...elements differing by one spin-orbital completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+    Output << "Elements differing by one spin-orbital generated in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
 
     /* Now Group 2. The elements of the matrix for two differences, exclusively alpha or beta spin-orbitals, has the same
        matrix form as before. We have to loop through the other spins having no differences. 
@@ -650,40 +653,40 @@ int main()
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
-    std::cout << "FCI: ...elements differing by two spin-orbitals completed in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
-    Output << "Elements differing by two spin-orbitals generated in " << (clock() - Timer) / CLOCKS_PER_SEC  << " seconds." << std::endl;
+    std::cout << "FCI: ...elements differing by two spin-orbitals completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+    Output << "Elements differing by two spin-orbitals generated in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
 
     Ham.setFromTriplets(tripletList.begin(), tripletList.end());
 
-    std::cout << "FCI: Hamiltonian initialization took " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
-    Output << "\nHamiltonian initialization took  " << (clock() - Start) / CLOCKS_PER_SEC  << " seconds." << std::endl;
+    std::cout << "FCI: Hamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
+    Output << "\nHamiltonian initialization took  " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
-    Timer = clock();
-    std::cout << "FCI: Beginning Direct Diagonalization... ";
-    Eigen::MatrixXd HamDense = Ham;
-    Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > HamEV;
-    HamEV.compute(HamDense);
-    std::cout << " done" << std::endl;
-    std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues() << std::endl;
-    std::cout << "FCI: Direct Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds." << std::endl;
+    // Timer = clock();
+    // std::cout << "FCI: Beginning Direct Diagonalization... ";
+    // Eigen::MatrixXd HamDense = Ham;
+    // Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > HamEV;
+    // HamEV.compute(HamDense);
+    // std::cout << " done" << std::endl;
+    // std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues() << std::endl;
+    // std::cout << "FCI: Direct Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds." << std::endl;
     
-    Output << "\nDirect Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds.\n\nThe eigenvalues found are\n" << HamEV.eigenvalues() << std::endl;
+    // Output << "\nDirect Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds.\n\nThe eigenvalues found are\n" << HamEV.eigenvalues() << std::endl;
 
-    Timer = clock();
+    Timer = omp_get_wtime();
     std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
     std::vector< double > DavidsonEV;
     Davidson(Ham, Dim, NumberOfEV, L, DavidsonEV);
     std::cout << "FCI: ...done" << std::endl;
-    std::cout << "FCI: Davidson Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds." << std::endl;
-    Output << "\nDavidson Diagonalization took " << (clock() - Timer) / CLOCKS_PER_SEC << " seconds.\nThe eigenvalues are" << std::endl;
+    std::cout << "FCI: Davidson Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+    Output << "\nDavidson Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
     for(int k = 0; k < NumberOfEV; k++)
     {
         Output << "\n" << DavidsonEV[k];
     }
-    Output << "\nTotal running time: " << (clock() - Start) / CLOCKS_PER_SEC << " seconds." << std::endl;
+    Output << "\nTotal running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
-    std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
-    OutputHamiltonian << HamDense << std::endl;
+    // std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
+    // OutputHamiltonian << HamDense << std::endl;
 
     return 0;
 }
