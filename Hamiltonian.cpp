@@ -206,7 +206,7 @@ std::vector<int> ListDifference(std::vector<bool> BraString, std::vector<bool> K
 }
 
 /* This function calculated <mn||kl> and takes as arguments, the orbital numbers, the spin of the orbitals, and the map */
-double TwoElectronIntegral(int m, int n, int k, int l, bool m_isAlpha, bool n_isAlpha, bool k_isAlpha, bool l_isAlpha, std::map<std::string, double> Integrals)
+double TwoElectronIntegral(int m, int n, int k, int l, bool m_isAlpha, bool n_isAlpha, bool k_isAlpha, bool l_isAlpha, std::map<std::string, double> &Integrals)
 {
     double mknl = 0; // First term. (mk|nl)
     double mlnk = 0; // Second term. (ml|nk)
@@ -268,6 +268,7 @@ int main()
     {
         L = NumberOfEV;
     }
+    int DegOfParallel = omp_get_max_threads(); // Degree of parallelization, currently set to max.
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -352,6 +353,8 @@ int main()
 
     typedef Eigen::Triplet<double> T;
     std::vector<T> tripletList;
+    std::vector< std::vector<T> > tripletList_Private(DegOfParallel);
+
     //tripletList.reserve(Dim);
 
     /* The basis of the matrix is ordered by reverse lexicographic ordering (A,B) where A is the A'th  alpha orbital
@@ -376,7 +379,8 @@ int main()
     #pragma omp parallel for
     for(int i = 0; i < aDim; i++) // Loop through every matrix element
     {
-        std::vector<T> tripletList_Private;
+        int Thread = omp_get_thread_num();
+        // std::vector<T> tripletList_Private;
         for(int j = 0; j < bDim; j++) // See above comment.
         {
             double tmpDoubleD = 0;
@@ -394,21 +398,21 @@ int main()
             /* Two electron operator in the notation <mn||mn> */
             std::vector<int> abOrbitalList = aOrbitalList[i]; // List of all orbitals, starting with alpha.
             abOrbitalList.insert(abOrbitalList.end(), bOrbitalList[j].begin(), bOrbitalList[j].end());
-            for(int ij = 0; ij < abOrbitalList.size(); ij++) // Sum over n
+            for(int n = 0; n < aElectrons + bElectrons; n++) // Sum over occupied orbitals n
             {
-                for(int ijij = ij + 1; ijij < abOrbitalList.size(); ijij++) // Sum over m > n
+                for(int m = n + 1; m < aElectrons + bElectrons; m++) // Sum over m > n
                 {
                     bool n_isAlpha = true;
                     bool m_isAlpha = true;
-                    if(ij > aElectrons - 1) n_isAlpha = false;
-                    if(ijij > aElectrons - 1) m_isAlpha = false;
-                    tmpDoubleD += TwoElectronIntegral(abOrbitalList[ijij], abOrbitalList[ij], abOrbitalList[ijij], abOrbitalList[ij], m_isAlpha, n_isAlpha, m_isAlpha, n_isAlpha, Input.Integrals);
+                    if(n > aElectrons - 1) n_isAlpha = false; // Means we have looped through the alpha orbitals and are now looking at a beta orbital
+                    if(m > aElectrons - 1) m_isAlpha = false;
+                    tmpDoubleD += TwoElectronIntegral(abOrbitalList[m], abOrbitalList[n], abOrbitalList[m], abOrbitalList[n], m_isAlpha, n_isAlpha, m_isAlpha, n_isAlpha, Input.Integrals);
                 }
             }
-            tripletList_Private.push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
+            tripletList_Private[Thread].push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
         }
-        #pragma omp critical
-        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        // #pragma omp critical
+        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
     std::cout << "FCI: ...diagonal elements completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
     Output << "Diagonal elements generated in " << (omp_get_wtime() - Timer)  << " seconds." << std::endl;
@@ -459,7 +463,8 @@ int main()
     #pragma omp parallel for
     for(int i = 0; i < aSingleDifference.size(); i++)
     {
-        std::vector<T> tripletList_Private;
+        int Thread = omp_get_thread_num();
+        //std::vector<T> tripletList_Private;
         int Index1, Index2;
         double tmpDouble1 = 0;
         // First, add the one electron contribution.
@@ -483,11 +488,11 @@ int main()
             Index1 = std::get<0>(aSingleDifference[i]) + j * aDim; // Diagonal in beta states. Hop to other beta blocks.
             Index2 = std::get<1>(aSingleDifference[i]) + j * aDim;
 
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
+            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
+            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
         }
-        #pragma omp critical
-        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        // #pragma omp critical
+        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     /* 
@@ -517,7 +522,8 @@ int main()
     #pragma omp parallel for
     for(int i = 0; i < bSingleDifference.size(); i++)
     {
-        std::vector<T> tripletList_Private;
+        int Thread = omp_get_thread_num();
+        // std::vector<T> tripletList_Private;
         int Index1, Index2;
         double tmpDouble1 = 0;
         // First, add the one electron contribution.
@@ -541,15 +547,18 @@ int main()
             Index1 = std::get<0>(bSingleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bSingleDifference[i]) * aDim + j;
 
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
+            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
+            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
         }
-        #pragma omp critical
-        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        // #pragma omp critical
+        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     std::cout << "FCI: ...elements differing by one spin-orbital completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
     Output << "Elements differing by one spin-orbital generated in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+
+    // Timer = clock();
+    Timer = omp_get_wtime();
 
     /* Now Group 2. The elements of the matrix for two differences, exclusively alpha or beta spin-orbitals, has the same
        matrix form as before. We have to loop through the other spins having no differences. 
@@ -560,7 +569,8 @@ int main()
     #pragma omp parallel for
     for(int i = 0; i < aDoubleDifference.size(); i++)
     {
-        std::vector<T> tripletList_Private;
+        int Thread = omp_get_thread_num();
+        // std::vector<T> tripletList_Private;
         int Index1, Index2;
         for(int j = 0; j < bDim; j++)
         {
@@ -574,16 +584,17 @@ int main()
             Index1 = std::get<0>(aDoubleDifference[i]) + j * aDim;
             Index2 = std::get<1>(aDoubleDifference[i]) + j * aDim;
 
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
+            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
+            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
         }
-        #pragma omp critical
-        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        // #pragma omp critical
+        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
     #pragma omp parallel for
     for(int i = 0; i < bDoubleDifference.size(); i++)
     {
-        std::vector<T> tripletList_Private;
+        int Thread = omp_get_thread_num();
+        // std::vector<T> tripletList_Private;
         int Index1, Index2;
 
         for(int j = 0; j < aDim; j++)
@@ -595,11 +606,11 @@ int main()
             Index1 = std::get<0>(bDoubleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bDoubleDifference[i]) * aDim + j;
 
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
+            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
+            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
         }
-        #pragma omp critical
-        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        // #pragma omp critical
+        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     /* Now Group 3. Unlike before, we don't have to loop over alpha or beta having no differences. We simply loop
@@ -607,7 +618,8 @@ int main()
     #pragma omp parallel for
     for(int i = 0; i < aSingleDifference.size(); i++)
     {
-        std::vector<T> tripletList_Private;
+        int Thread = omp_get_thread_num();
+        // std::vector<T> tripletList_Private;
         int Index1, Index2;
         for(int j = 0; j < bSingleDifference.size(); j++)
         {
@@ -619,8 +631,8 @@ int main()
             Index1 = std::get<0>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<1>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]);
             // Note that the sign is the product of the signs of the alpha and beta strings. This is because we can permute them independently.
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             /* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half 
                of the upper triangle. In particular, the upper half of each beta block in upper triangle of the full matrix
                are the only nonzero elements. We want the whole beta block in the upper triangle of the full matrix to be
@@ -645,16 +657,20 @@ int main()
             Index1 = std::get<1>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<0>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]); // Note that first and second are switched for alpha here.
 
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            // std::cout << Index1 << "\t" << Index2 << std::endl;
+            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
         }
-        #pragma omp critical
-        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        // #pragma omp critical
+        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     std::cout << "FCI: ...elements differing by two spin-orbitals completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
     Output << "Elements differing by two spin-orbitals generated in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+
+    for(int Thread = 0; Thread < omp_get_num_threads(); Thread++)
+    {
+        tripletList.insert(tripletList.end(), tripletList_Private[Thread].begin(), tripletList_Private[Thread].end());
+    }
 
     Ham.setFromTriplets(tripletList.begin(), tripletList.end());
 
@@ -683,6 +699,7 @@ int main()
     {
         Output << "\n" << DavidsonEV[k];
     }
+    std::cout << "FCI: Total running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
     Output << "\nTotal running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
     // std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
