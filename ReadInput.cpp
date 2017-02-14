@@ -13,6 +13,12 @@ void InputObj::GetInputName()
     std::cin >> OutputName;
 }
 
+void InputObj::SetNames(char* In, char* Out)
+{
+    InputName = In;
+    OutputName = Out;
+}
+
 /*****                                    FORMAT OF THE INPUT FILE                                 *****/
 /* The input file is taken from the integrals computed in QChem (version 4.4). To obtain these integrals,
    the line "CORRELATION idump" must be added to the %rem section of the QChem input. This outputs a list

@@ -2,6 +2,7 @@ class InputObj
 {
     public:
         void GetInputName();
+        void SetNames(char*, char*);
         void Set();
         int aElectrons;
         int bElectrons;

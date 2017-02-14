@@ -250,10 +250,17 @@ int CountOrbitalPosition(int Orbital, bool isAlpha, std::vector<int> OrbitalList
     return Count;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     InputObj Input;
-    Input.GetInputName();
+    if(argc == 3)
+    {
+        Input.SetNames(argv[1], argv[2]);
+    }
+    else
+    {
+        Input.GetInputName();
+    }
     Input.Set();
     int aElectrons = Input.aElectrons;
     int bElectrons = Input.bElectrons;
@@ -269,6 +276,7 @@ int main()
         L = NumberOfEV;
     }
     int DegOfParallel = omp_get_max_threads(); // Degree of parallelization, currently set to max.
+    double MatTol = 10E-4; // Zeros elements below this threshold, significiantly reduces storage requirements.
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -346,6 +354,12 @@ int main()
         }
     }
 
+    int NonzeroElements = Dim + aSingleDifference.size() * bDim * 2 + bSingleDifference.size() * aDim * 2 + aDoubleDifference.size() * bDim * 2
+    + bDoubleDifference.size() * aDim * 2 + aSingleDifference.size() * bSingleDifference.size() * 4;
+    Output << "Number of alpha singles: " << aSingleDifference.size() << "\nNumber of beta singles: " << bSingleDifference.size() 
+    << "\nNumber of alpha doubles: " << aDoubleDifference.size() << "\nNumber of beta doubles: " << bDoubleDifference.size() 
+    << "\nChecking " << NonzeroElements << " elements.\n" << std::endl;
+
     std::cout << "done.\nFCI: Commencing with matrix initialization... " << std::endl;;
     Eigen::SparseMatrix<double> Ham(Dim, Dim);
     // clock_t Timer = clock();
@@ -355,7 +369,7 @@ int main()
     std::vector<T> tripletList;
     std::vector< std::vector<T> > tripletList_Private(DegOfParallel);
 
-    //tripletList.reserve(Dim);
+    // tripletList.reserve(NonzeroElements);
 
     /* The basis of the matrix is ordered by reverse lexicographic ordering (A,B) where A is the A'th  alpha orbital
        and B is the B'th beta orbital. Essentially, this means we have beta blocks and inside each block is a matrix for
@@ -485,6 +499,8 @@ int main()
                 // For this case, we know that m and p orbitals are alpha. n may or may not be alpha depending on the index of the sum.
             }
 
+            if(fabs(tmpDouble1 + tmpDouble2) < MatTol) continue;
+
             Index1 = std::get<0>(aSingleDifference[i]) + j * aDim; // Diagonal in beta states. Hop to other beta blocks.
             Index2 = std::get<1>(aSingleDifference[i]) + j * aDim;
 
@@ -544,6 +560,8 @@ int main()
                 // In this case, both the unique orbitals are beta orbitals.
             }
 
+            if(fabs(tmpDouble1 + tmpDouble2) < MatTol) continue;
+
             Index1 = std::get<0>(bSingleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bSingleDifference[i]) * aDim + j;
 
@@ -580,6 +598,8 @@ int main()
             double tmpDouble;
             tmpDouble = TwoElectronIntegral(std::get<3>(aDoubleDifference[i])[0], std::get<3>(aDoubleDifference[i])[1], std::get<3>(aDoubleDifference[i])[2], std::get<3>(aDoubleDifference[i])[3], true, true, true, true, Input.Integrals);
             // The four electron differences, all of them alpha electrons.
+
+            if(fabs(tmpDouble) < MatTol) continue;
             
             Index1 = std::get<0>(aDoubleDifference[i]) + j * aDim;
             Index2 = std::get<1>(aDoubleDifference[i]) + j * aDim;
@@ -602,6 +622,8 @@ int main()
             double tmpDouble;
             tmpDouble = TwoElectronIntegral(std::get<3>(bDoubleDifference[i])[0], std::get<3>(bDoubleDifference[i])[1], std::get<3>(bDoubleDifference[i])[2], std::get<3>(bDoubleDifference[i])[3], false, false, false, false, Input.Integrals);
             // The four electron differences, all of them beta electrons.
+
+            if(fabs(tmpDouble) < MatTol) continue;
 
             Index1 = std::get<0>(bDoubleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bDoubleDifference[i]) * aDim + j;
@@ -628,6 +650,7 @@ int main()
             /* There is one alpha and one beta orbital mismatched between the bra and ket. According to the formula, we put the bra unique orbitals in first,
                which are the first two arguments, the first one alpha and the second one beta. Then the next two arguments are the unique orbitals
                of the ket. We know whether these electrons are alpha or beta. */
+            if(fabs(tmpDouble) < MatTol) continue;
             Index1 = std::get<0>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<1>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]);
             // Note that the sign is the product of the signs of the alpha and beta strings. This is because we can permute them independently.
@@ -670,12 +693,14 @@ int main()
     for(int Thread = 0; Thread < omp_get_num_threads(); Thread++)
     {
         tripletList.insert(tripletList.end(), tripletList_Private[Thread].begin(), tripletList_Private[Thread].end());
+        tripletList_Private[Thread].clear();
+        tripletList_Private[Thread].shrink_to_fit(); // Free up memory.
     }
 
     Ham.setFromTriplets(tripletList.begin(), tripletList.end());
 
     std::cout << "FCI: Hamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
-    Output << "\nHamiltonian initialization took  " << (omp_get_wtime() - Start) << " seconds." << std::endl;
+    Output << "\nHamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
     // Timer = clock();
     // std::cout << "FCI: Beginning Direct Diagonalization... ";

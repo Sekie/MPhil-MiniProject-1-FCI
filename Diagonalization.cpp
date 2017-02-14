@@ -92,6 +92,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
             Eigen::VectorXd Hb = Ham * BVectors[i];
             HbVectors.push_back(Hb);
         }
+
         /***** Step 2 *****/
         /* 
            Here, we construct the L x L matrix G, which has elements <bi| H | bj>. This is the Hamiltonian
@@ -152,7 +153,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
             Eigen::VectorXd fk(Dim); // Holds the k'th correction vector.
             for(int i = 0; i < Dim; i++)
             {
-                fk[i] = DVectors[k][i] / (EigensystemG.eigenvalues()[k] - Ham.coeffRef(i,i));
+                fk[i] = DVectors[k][i] / (EigensystemG.eigenvalues()[k] - Ham.coeff(i,i));
             }
             /***** Step 4 *****/
             fk /= fk.norm(); // Normalize.
