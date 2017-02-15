@@ -143,23 +143,23 @@ Tom Brady is the G.O.A.T.
 
 %% main text
 \section{Introduction} \label{sec:intro}
-The method of configuration interaction (CI) is ubiquitous in computational chemistry with a rich and varied history.\cite{shavitt} The Hartree-Fock (HF) method\cite{hartree,fock} provides a practical means to obtaining an approximation solution to the time-independent Schr\"{o}dinger Equation. However, HF approximates the true wavefunction using a single-configuration wavefunction and cannot account for correlation energy.\cite{szabo} To this end, CI includes correlation through coupling the single-configuration wavefunction with other configurations. Slater introduced the slater determinant and showed how multiple configurations could be derived.\cite{slater} These configurations are formally a complete basis for the Hilbert Space. Condon further derived the rules to calculate the elements of the Hamiltonian matrix in the basis of Slater determinants.\cite{condon} In practice, one uses a basis of either slater determinants, or a linear combination of Slater determinants that are eigenstates of spin-angular momentum called configuration state functions (CSF). A solution using all possible n-electron determinants or CSFs from a set of one-particle functions, or atomic orbitals, is called full CI (FCI). FCI gives an exact solution to Schr\"{o}dinger's Equation in that function space, but scales exponentially with system size, making practical calculations only possible for the smallest of molecules.\cite{szabo}
+The method of configuration interaction (CI) is ubiquitous in computational chemistry and has a rich and varied history.\cite{shavitt} CI builds upon the Hartree-Fock (HF) method,\cite{hartree,fock} which provides a cheap, approximate solution to the time-independent Schr\"{o}dinger Equation. Although HF is inexpensive, it approximates the true wavefunction as a single configuration and cannot account for correlation energy.\cite{szabo} Slater introduced the Slater determinant and showed how multiple configurations could be derived from the HF solution.\cite{slater} CI takes advantage of these configurations by introducing coupling between the different configurations, providing a solution that includes correlation energy. Condon further derived the rules to calculate the value of coupling between different configurations.\cite{condon} These configurations are formally a complete basis for the Hilbert Space in which the true solution lies. In practice, one uses a finite basis of either Slater determinants, or a linear combination of Slater determinants that are eigenstates of spin-angular momentum called configuration state functions (CSF). A solution using all possible n-electron determinants or CSFs from a set of one-particle functions, or atomic orbitals, is called full CI (FCI). FCI gives an exact solution to Schr\"{o}dinger's Equation in that function space, but scales exponentially with system size, making practical calculations only possible for the smallest of molecules.\cite{szabo}
 
-Early CI calculations used a slater-type orbital (STO) basis set introduced by Slater.\cite{sto} This made it very difficult to conduct \ai\ calculations on polyatomic systems.\cite{shavitt} Later, Boys introduced gaussian-type orbitals (GTO) as a basis to significantly simplify integrals.\cite{gto} One prominent calculation in the early days of CI includes the calculation of the three lowest lying electronic states of CH$_2$ in 1960.\cite{boys-1960} This calculation was the first to predict a bent ground state geometry for CH$_2$.
+Early CI calculations used a Slater-type orbital (STO) basis set introduced by Slater.\cite{sto} The high cost of numerically integrating STOs made it very difficult to conduct \ai\ calculations on polyatomic systems.\cite{shavitt} Later, Boys introduced gaussian-type orbitals (GTO) as a basis to significantly simplify integrals.\cite{gto} One prominent calculation in the early days of CI includes the calculation of the three lowest lying electronic states of CH$_2$ in 1960.\cite{boys-1960} This calculation was the first to predict a bent ground state geometry for CH$_2$.
 
-Much work has been dedicated to improving the efficiency and speed of CI calculations. While an FCI calculation provides a more complete solution than a calculation involving fewer configurations, it is not always feasible. However, new algorithms and computational tools have allowed for FCI calculations on systems of unprecedent sizes.\cite{bendazzoli-1995} Among these include a parellizable and vectorizable algorithm first introduced by Knowles and Handy for FCI in a determinant basis.\cite{handy-1984,handy-1988,olsen,evangelisti-1993}
+Much work has been dedicated to improving the efficiency and speed of CI calculations. While an FCI calculation provides a more complete solution than a calculation involving fewer configurations, FCI is not always feasible. However, new algorithms and computational tools have allowed for FCI calculations on systems of unprecedented sizes.\cite{bendazzoli-1995} Among these include a vector algorithm first introduced by Knowles and Handy for FCI in a determinant basis.\cite{handy-1984,handy-1988,olsen,evangelisti-1993}
 
-Rather than going to the FCI limit, the configurations included in the CI expansion are typically truncated based on how many electrons are occupying orbitals that are empty in the reference configuration. For example, the inclusion of single excitations is called CIS. The inclusion of double excitations is called CISD, and so on.\cite{szabo}  
+Rather than going to the FCI limit, the configurations included in the CI expansion are typically truncated based on how many electrons are occupying virtual orbitals. For example, the inclusion of single excitations is called CIS. The inclusion of double excitations is called CISD, and so on.\cite{szabo}  
 
-CI methods can be classified as single reference CI (SRCI) or multireference CI (MRCI). In SRCI, the CI expansion is based on one configuration, typically a HF solution. For MRCI, the expansion is based on a set of configuration references.\cite{hackmeyer-1969} Early choices for the reference configurations tended to be based on physical considerations\cite{shavitt-1974} or perturbative estimates for the most important configurations to the ground state.\cite{nesbet-1955} Later, more systematic choices were adopted. One choice is to take a set of ``active'' orbitals, typically valence orbitals, and then use the FCI expansion in the active space as a reference.\cite{cas} This method is known as complete active space (CAS). The number of references can still be too large in practice. Another approach is to put an occupancy restriction on active space orbitals, in a method called restricted active space (RAS).\cite{ras} There is active work on further restrictions,\cite{shavitt} but they will not be mentioned here.
+Though truncated CI allows for electronic structure calculations of much larger systems, they are not size-extensive. Only in the FCI limit is CI size-extensive, and it is for this reason coupled-cluster (CC) methods have taken over CI methods in popularity for mid-sized molecules.\cite{cc,bartlett-2007} Pople and Head-Gordon later formulated quadratic CI (QCI), which modified CI to be size-extensive.\cite{qci} QCI has been shown to be comparable to CC methods.\cite{werner-1992}
 
-Though truncated CI allows for electronic structure calculations of much larger systems, they are not size-extensive. Only in the FCI limit is CI size-extensive, and it is for this reason coupled-cluster (CC) methods have taken over CI methods in popularity for mid-sized molecules.\cite{cc,bartlett-2007} Pople and Head-Gordon later formulated quadratic CI (QCI), which modified CI to be size-extensive\cite{qci} and has been shown to be comparable to CC methods.\cite{werner-1992}
+CI methods can be classified as single reference CI (SRCI) or multireference CI (MRCI). In SRCI, the CI expansion is based on one configuration, typically a HF solution. For MRCI, the expansion is based on a set of configuration references.\cite{hackmeyer-1969} Early choices for the reference configurations tended to be based on physical considerations\cite{shavitt-1974} or perturbative estimates for the most important configurations to the ground state.\cite{nesbet-1955} Later, more systematic choices were adopted. One choice is to take a set of ``active'' orbitals, typically valence orbitals, and then use the FCI expansion in the active space as a reference.\cite{cas} This method is known as complete active space (CAS). In some cases, CAS provides too many references to be computationally feasible. Another approach is to put an occupancy restriction on active space orbitals, in a method called restricted active space (RAS).\cite{ras} There is active work on further restrictions,\cite{shavitt} but they will not be mentioned here.
 
 In terms of choosing CSFs, many methods exist including symmetric group methods,\cite{wigner} projection operator methods,\cite{lowdin} and unitary group methods.\cite{paldus-1974} These methods serve to construct a basis of eigenstates of total spin-angular momentum. However, no spin adaption will be done in this paper. % Basis set? Orbitals?
 
-The most expensive procedure in the CI algorithm is the diagonalization of the Hamiltonian matrix in the space of potentially millions of CSFs or determinants. However, in any CI calculation, one is typically only interested in a few lower lying solutions. Iterative methods such as the Lanczos algorithm are known to be effective for these situations.\cite{Lanczos} Davidson introduced a similar iterative algorithm that exploits the diagonal dominance of the Hamiltonian matrix to compute specific eigenvalues of the Hamiltonian without need to calculate lower eigenvalues first.\cite{davidson} Since then, a modified version of the Davidson algorithm was introduced by Lui to allow the diagonalization to find multiple eigenvalues at once.\cite{liu}
+The most expensive procedure in the CI algorithm is the diagonalization of the Hamiltonian matrix in the space of potentially millions of CSFs or determinants. However, in any CI calculation, one is typically only interested in a few lower lying solutions. Iterative methods such as the Lanczos algorithm are known to be effective for these situations.\cite{Lanczos} Davidson introduced a similar iterative algorithm that exploits the diagonal dominance of the Hamiltonian matrix to compute specific eigenvalues of the Hamiltonian without need to calculate lower eigenvalues first.\cite{davidson} Since then, a modified version of the Davidson algorithm was introduced by Liu to allow the algorithm to converge to multiple eigenvalues at once.\cite{liu}
 
-This paper will discuss application of the FCI method on the BH and H$_2$O molecules, which have been previously studied using FCI.\cite{handy-1983} The Hamiltonian matrix will be constructed in a space of slater determinants and the Davidson diagonalization algorithm will be implemented. 
+This paper will discuss application of the FCI method on the BH and H$_2$O molecules, which have been previously studied using FCI.\cite{cccbdb,handy-1983} The Hamiltonian matrix will be constructed in a space of Slater determinants and the Davidson diagonalization algorithm will be implemented. 
 
 \section{Theory}
 \subsection{Electronic Problem} \label{sec:elproblem}
@@ -211,7 +211,7 @@ where $n$ is the number of electrons in the system, $\ket{\phi_i}$ are spin orbi
 \psi^\prime(\mathbf{r}) = \dfrac{1}{\sqrt{n!}}\det\begin{pmatrix} \phi_1(\mathbf{r}_1) & \cdots & \phi_n(\mathbf{r}_1) \\ \vdots & \ddots & \vdots \\
 \phi_1(\mathbf{r}_n) & \cdots & \phi_n(\mathbf{r}_n) \end{pmatrix}
 \end{equation}
-$\ket{\psi^\prime}$ in this form is referred to as a slater determinant\cite{slater} and will be denoted more succinctly as
+$\ket{\psi^\prime}$ in this form is referred to as a Slater determinant\cite{slater} and will be denoted more succinctly as
 \begin{equation}
 \ket{\psi^\prime} = |\phi_1 \cdots \phi_n|
 \end{equation}
@@ -248,7 +248,7 @@ where
 \end{subequations}
 and $\hat V_{NN}$ is defined in Equation \eqref{eq:vnn}.
 
-The Slater-Condon rules are now presented. Their derivations are listed in \ref{app:slatercondon}. Consider two slater determinants $\ket{\psi_1}$ and $\ket{\psi_2}$ with maximum matching orbitals. This means that spin orbitals shared by both determinants are ordered so that they are in the same position within both determinants, with the caveat that each transpose changes the sign of the determinant. In the following equations, $i$ and $j$ indexes shared orbitals. The notation $(kl|pq)$ is also defined as
+The Slater-Condon rules are now presented. These rules are derived in \ref{app:slatercondon}. Consider two slater determinants $\ket{\psi_1}$ and $\ket{\psi_2}$ with maximum matching orbitals. This means that spin orbitals shared by both determinants are ordered so that they are in the same position within both determinants, with the caveat that each transpose changes the sign of the determinant. In the following equations, $i$ and $j$ indexes shared orbitals. The index on the operators are dropped when the operator acts on a dummy integration variable. The notation $(kl|pq)$ is also defined as
 \begin{equation}
 (kl|pq) = \int \phi_k^*(\mathbf{r})\phi_p^*(\mathbf{r}^\prime) \frac{1}{|\mathbf{r}-\mathbf{r}^\prime|} \phi_l(\mathbf{r}) \phi_q(\mathbf{r}^\prime) \mathrm{d}\mathbf{r}\mathrm{d}\mathbf{r}^\prime 
 \end{equation}
@@ -269,7 +269,7 @@ The Slater-Condon rules are:
 \end{align*}
 \begin{equation} \label{eq:sc1}
 \begin{split}
-\bra{\psi_1} \ham_e \ket{\psi_2} = & \bra{\phi_k} \hat h \ket{\phi_p} \\ & + \sum_{i=0}^n \left[ (kp|ii) - (ki|ip) \right]
+\bra{\psi_1} \ham_e \ket{\psi_2} = & \bra{\phi_k} \hat h \ket{\phi_p} \\ & + \sum_{i=1}^n \left[ (kp|ii) - (ki|ip) \right]
 \end{split}
 \end{equation}
 
@@ -289,13 +289,18 @@ The Slater-Condon rules are:
 \end{subequations}
 \end{enumerate}
 
-To calculate these integrals, the spin orbitals are approximated by a sum of gaussian type functions,\cite{gto} the number and form of which depending on the type of basis desired. The details of this calculation will be discussed in Section \ref{sec:integrals}.
+It is clear that setting up an FCI calculation requires the evaluation of many integrals. To calculate these integrals, the spin orbitals are approximated by a sum of GTOs,\cite{gto} the number and form of which depending on the type of basis desired. STOs are rarely used because STOs must be numerically integrated, whereas GTOs have analytic integrals.\cite{szabo} The details of the basis used in this study will be discussed in Section \ref{sec:integrals}.
 
-\section{Computational Details}
-\subsection{Integrals} \label{sec:integrals}
-The integrals presented in Equations \eqref{eq:sc0} to \eqref{eq:sc3} were calculated using the electronic structure package, Q-Chem 4.4.1.\cite{qchem} Using these integrals, the FCI ground state energy was calculated for one geometry of BH and three geometries of H$_2$O. These geometries are listed in Table \ref{tab:geo}
+\section{Procedure}
 
-For BH, the bond length was set to the equilibrium bond length of 1.2282 \AA, determined from an optimization using a QCISD(TQ)/6-31+G** calculation.\cite{cccbdb} A basis of 6-31+G** was used for the calculation of the integrals. 
+In this study, the FCI Hamiltonian matrix for one geometry of BH and three different geometries of H$_2$O was generated using the Slater-Condon rules presented in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The value of these integrals were evaluated in the electronic structure package, Q-Chem 4.4.1.\cite{qchem} The Hamiltonian matrices were then diagonalized using the Davidson diagonalization algorithm\cite{davidson,liu} to find the lowest eigenvalue. This algorithm will be discussed in Section \ref{sec:davidson}.
+
+\subsection{Computational Details} \label{sec:integrals}
+
+%Q-Chem was used to compute the integrals in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. These integrals were used to form the FCI Hamiltonian matrix for one geometry of BH and three geometries of H$_2$O. The geometries are listed in Table \ref{tab:geo}
+Table \ref{tab:geo} contains a summary of the geometry used in the calculations of each molecule studied.
+
+For BH, the bond length was set to the equilibrium bond length of 1.2449 \AA.\cite{cccbdb} A basis of 6-31G* was used for the calculation of the integrals in Q-Chem. 
 
 For H$_2$O, the HOH angle was set to 110.565$^\circ$ and O---H bond lengths were varied between three different values listed in Table \ref{tab:geo}. To calculate the integrals at each geometry, a DZ quality basis was used. These geometries and the basis match those used in a previous work.\cite{handy-1983}
 
@@ -304,7 +309,7 @@ For H$_2$O, the HOH angle was set to 110.565$^\circ$ and O---H bond lengths were
 \begin{tabular}{l|c}
 \hline\hline
 & Bond Length (\AA) \\ \hline
-BH & 1.2282 \\ \hline
+BH & 1.2449 \\ \hline
 H$_2$O (1) & 0.9755\\
 H$_2$O (2) & 1.4633\\
 H$_2$O (3) & 1.9510\\ \hline\hline
@@ -313,10 +318,10 @@ H$_2$O (3) & 1.9510\\ \hline\hline
 \label{tab:geo}
 \end{table}
 
-\subsection{Davidson Diagonalization}
-The size of the determinant space can be over one million determinants. The cost of diagonalizing the full Hamiltonian matrix in Equation \eqref{eq:hmat} is usually prohibitively large. In this study, the package Eigen for C++ was utilized to diagonalize the full Hamiltonian.\cite{eigen} Eigen uses a QR iterative algorithm that has a cubic cost and cubic convergence.\cite{qr}
+\subsection{Davidson Diagonalization} \label{sec:davidson}
+The size of the determinant space can be over one million determinants. The cost of diagonalizing the full Hamiltonian matrix in Equation \eqref{eq:hmat} is usually prohibitively large. %In this study, the package Eigen for C++ was utilized to diagonalize the full Hamiltonian.\cite{eigen} Eigen uses a QR iterative algorithm that has a cubic cost and cubic convergence.\cite{qr}
 
-Because of the nature of our problem, a full diagonalization is not necessary. The eigenvalues of Equation \eqref{eq:elproblem} are desired, but typically only the lowest lying eigenvalues are desired. Davidson introduced an iterative eigenvalue algorithm that was capable of converging to a chosen, the lowest for example, eigenvalue in a significantly shorter time.\cite{davidson} Liu later adapted the algorithm to converge to multiple eigenvalues at once.\cite{liu} Liu's formulation is presented in Algorithm \ref{alg:davidson} and this is the formulation that has been implemented in this work.
+Because of the nature of our problem, a full diagonalization is not necessary. The eigenvalues of Equation \eqref{eq:elproblem} are desired, but typically only the lowest lying eigenvalues are desired. Davidson introduced an iterative eigenvalue algorithm that was capable of converging to a chosen, the lowest for example, eigenvalue in a significantly shorter amount of time.\cite{davidson} Liu later adapted the algorithm to converge to multiple eigenvalues at once.\cite{liu} Liu's formulation is presented in Algorithm \ref{alg:davidson} and this is the formulation that has been implemented in this work.
 
 \begin{algorithm}
  Read in $N \times N$ Hamiltonian matrix, $H$\;
@@ -380,11 +385,11 @@ Because of the nature of our problem, a full diagonalization is not necessary. T
 \section{Results}
 \subsection{BH} \label{sec:bhresults}
 %Talk about number of electrons and orbitals
-The results are compared to a QCISD(TQ) calculation using a 6-31+G** basis.\cite{cccbdb}
+The results are compared to a FCI calculation using a 6-31G* basis.\cite{cccbdb}
 \begin{table}
 \begin{tabular}{l|cc} \hline\hline
 & Previous Work\cite{cccbdb} & This Work \\ \hline
-Energy ($E_h$) & -25.215228 & \\ \hline\hline
+Energy ($E_h$) & -25.2023 & -25.2013 \\ \hline\hline
 \end{tabular}
 \caption{Calculated ground state energies of BH at the geometry specified in Table \ref{tab:geo}.}
 \label{tab:bhresults}
@@ -396,18 +401,19 @@ The results are compared to a previous study by Knowles and Handy.\cite{handy-19
 \begin{table}
 \begin{tabular}{l|cc} \hline\hline
 & Previous Work\cite{handy-1983} & This Work \\ \hline
-Geometry 1 & -76.157866 & \\ 
-Geometry 2 & -76.014521 & \\
-Geometry 3 & -75.905247 & \\\hline\hline
+Geometry 1 & -76.1579 & -76.1581 \\ 
+Geometry 2 & -76.0145 & -76.0126 \\
+Geometry 3 & -75.9052 & -75.9023 \\\hline\hline
 \end{tabular}
 \caption{Calculated ground state energies in hartrees of H$_2$O at geometries specified in Table \ref{tab:geo}.}
 \end{table}
 
 
-\section{Conclusions}
+\section{Conclusions and Outlook}
 \label{sect:Concl}
-In which we conclude that LaTeX (or \LaTeX) is very useful for
-generating scientific papers as demonstrated above.
+The electronic energies of the ground states of BH and H$_2$O were computed through an FCI analysis. The electronic Hamiltonian for these molecules were diagonalized in a space of all Slater determinants using integrals calculated from Q-Chem.
+
+Although computationally costly, FCI still feasible for a wide range of molecules and is effective in determining the most accurate electronic energies possible for these molecules. The Davidson diagonalization algorithm implemented in this study proved to be an efficient method to obtain the lower eigenvalues of the Hamiltonian. In future studies, a vectorized algorithm will be implemented to circumvent the need to store the Hamiltonian matrix and take advantage of parallelized computer architectures.\cite{handy-1983} It will also be worthwhile to compare the FCI results to results from truncated CI, such as CISD, and to results using CC methods to judge the relative accuracy of other methods.
 
 \section*{Acknowledgements}
 Here I acknowledge the assistance of my supervisor, my industrial sponsor,
@@ -416,7 +422,6 @@ and the effects of caffeine on my ability to produce this report on time.
 %% The Appendices part is started with the command \appendix;
 %% appendix sections are then done as normal sections
 \appendix
-\section{Enumeration of Slater Determinants used in this Study} \label{app:det}
 
 \section{Derivation of the Slater-Condon Rules}
 \label{app:slatercondon}
@@ -427,7 +432,7 @@ For the derivation, the slater determinant will be written in the form
 where $S_n$ denotes the permutation group of $n$ elements and sign($\sigma$) is +1 for even permutations, -1 for odd permutations. The proofs are presented below, proved in the same order as presented in Section \ref{sec:condonrules} and using the same notation.
 
 \begin{enumerate}
-	\item For the one element operator, 
+	\item For the one element operator matrix element, 
 	\begin{gather}
 	\bra{\psi_1}\sum_i\hat h_i\ket{\psi_1}\\ 
 	\begin{gathered}
@@ -447,11 +452,11 @@ where $S_n$ denotes the permutation group of $n$ elements and sign($\sigma$) is 
 	= \sum_{i=1}^n \bra{\phi_i}\hat h_i \ket{\phi_i}
 	\end{gather}
 	
-	For the two electron operator,
+	For the two electron operator matrix element,
 	\begin{gather}
 	\bra{\psi_1}\sum_{i<j}^n\hat g_{ij}\ket{\psi_1} \\
 	\begin{gathered}
-	\frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i < j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	= \frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i < j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
 	\times \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma^\prime(i)}\phi_{\sigma^\prime(j)}} \\
 	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
 	\end{gathered}
@@ -471,27 +476,137 @@ where $S_n$ denotes the permutation group of $n$ elements and sign($\sigma$) is 
 	\bra{\psi_1}\hat V_{NN} \ket{\psi_1} = V_{NN} \bra{\psi_1}\ket{\psi_1} = V_{NN}
 	\end{equation}
 	
-	\item For the one electron operator
+	\item For the one electron operator matrix element,
 	\begin{gather}
 	\begin{gathered}
-	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma \in S_n^k}\sum_{\sigma^\prime \in S_n^p}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
 	\times \bra{\cdots\phi_{\sigma(k)}\cdots} \hat h_i \ket{\cdots\phi_{\sigma^\prime(p)}\cdots}
 	\end{gathered}
 	\end{gather}
-	where $S_n^k$ and $S_n^p$ are the permutation group of $n$ elements, both containing the same elements except for $k$ and $p$ respectively.
+	The position of the unique orbital will be denoted $p$, but if $p$ appears in the bra, it implies $k$.
 	\begin{gather}
 	\begin{gathered}
-	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma \in S_n^k}\sum_{\sigma^\prime \in S_n^p}\sum_{i\neq k,p}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
-	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{j\neq i, k, p}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma^\prime(j)}} \\ \times \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(p)}}
+	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma^\prime(j)}}
+	%\times \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(p)}}
 	\end{gathered}
 	\end{gather}
-	The product of expectations, or third term above is zero except when $\sigma$ and $\sigma^\prime$ agree for all elements not equal to $i$ or the unique element in the set of $n$ elements. This means that for any choice of $\sigma$, $\sigma^\prime$ must either be equal to $\sigma$ or $\sigma^\prime(i) = \sigma(k)$, where if $k$ is the result of any of these permutations, $p$ is used instead.
+	Again, $\sigma$ and $\sigma^\prime$ must agree to be nonzero.
+	\begin{gather} \label{eq:hexp}
+	\begin{gathered}
+	 \frac{1}{n!} \sum_{\sigma \in S_n}\sum_{i=1}^n \text{sign}(\sigma)^2 \\
+	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma(j)}}
+	\end{gathered}
+	\end{gather}
+	In this case, another possibility is that $\sigma(j) = p$. Since $\phi_p$ is not an orbital in $\ket{\psi_1}$, the term above is zero whenever $\sigma(j) = p$ for all $j \neq i$. This forces $\sigma(i) = p$ and correspondingly, $\sigma(i) = k$ in the bra. The repeated product is then unity. If $i$ is fixed to $k$ or $p$, then there are $(n-1)!$ ways to permute the remaining elements.
+	\begin{gather}
+	 \frac{1}{n!}(n-1)!\sum_{i=1}^n \bra{\phi_{k}}\hat h_i \ket{\phi_{p}} \\
+	 \frac{1}{n!}n(n-1)!\bra{\phi_{k}}\hat h \ket{\phi_{p}} \\
+	 \bra{\phi_k}\hat h \ket{\phi_p}
+	\end{gather}
+	
+	For the matrix element of the two electron operator,
+	\begin{gather}
+	\bra{\psi_1}\frac{1}{2}\sum_{i=1}^n\sum_{j\neq i}^n \hat g_{ij}\ket{\psi_2} \\
+	\begin{gathered}
+	= \frac{1}{2}\frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i \neq j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+	\times \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma^\prime(i)}\phi_{\sigma^\prime(j)}} \\
+	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+	\end{gathered}
+	\end{gather}
+	Again, the third term is zero whenever $\sigma$ and $\sigma^\prime$ disagree on $k \neq i,j$, so among the nonzero permutations are the ones which fix $i$ and $j$, and which switch $i$ and $j$.
+	\begin{gather} \label{eq:gexp}
+	\begin{gathered}
+	= \frac{1}{2}\frac{1}{n!} \sum_{\sigma \in S_n} \sum_{i \neq j}^n  \text{sign}(\sigma) \\ \times \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right] \\
+	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+	\end{gathered}
+	\end{gather}
+	The repeated product over $k$ is zero whenever $\sigma(k) = p$ (or $k$ in $\ket{\psi_1}$) because that orbital is not contained in $\ket{\psi_1}$. Hence, it must be that the only nonzero permutations are ones such that $\sigma(i) = p$ or $\sigma(j) = p$.
 	\begin{gather}
 	\begin{gathered}
-	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma \in S_n^k}\sum_{i\neq k,p}^n \text{sign}(\sigma) \\
-	\times \left[ \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \bra{\phi_{\sigma(k)}}\ket{\phi_{p}} \right.
-	\\ \left. - \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma(i)}} \right]
+	= \frac{1}{2}\frac{1}{n!} \sum_{i \neq j}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(j)}} - \right.
+	\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{p}} \right] \\
+	+ \left[ \bra{\phi_{\sigma(i)}\phi_{k}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} \right] 
 	\end{gathered}
+	\end{gather}
+	If $i = j$, then the first and fourth term will cancel out, as well as the second and third term, so we can remove the restriction on the sum. Moreover, the dummy variable of integration can be exchanged on the first and third term to show that these terms are the same, when summed over $i$ and $j$. The same is true for the second and fourth terms.
+	\begin{gather}
+	\begin{gathered}
+	= \frac{1}{2}\frac{1}{n!} \sum_{j = 1}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(j)}} - \right.
+	\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{p}} \right] \\
+	+ \sum_{i = 1}^n \left[ \bra{\phi_{\sigma(i)}\phi_{k}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} \right] 
+	\end{gathered} \\
+	\begin{gathered}
+	= \frac{1}{2}\frac{1}{n!} 2 \sum_{i = 1}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} - \right.
+	\\ \left. \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} \right]
+	\end{gathered} \\
+	= \frac{2\cdot n!}{2\cdot n!} \sum_{i = 1}^n \left[(kp|ii) - (ki|ip)\right] \\
+	= \sum_{i = 1}^n \left[(kp|ii) - (ki|ip)\right]
+	\end{gather}
+	
+	Finally, the matrix element of the zero electron operator is
+	\begin{gather}
+	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
+	\end{gather}
+	
+	\item For the one electron operator, the matrix element reduces the same way as was done in previous cases to Equation \eqref{eq:hexp}.
+%	\begin{gather}
+%	\begin{gathered}
+%	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+%	\times \bra{\cdots\phi_{\sigma(k)}\phi_{\sigma(l)}\cdots} \hat h_i \ket{\cdots\phi_{\sigma^\prime(p)}\phi_{\sigma(q)}\cdots}
+%	\end{gathered} \\
+%		\begin{gathered}
+%	 =\frac{1}{n!} \sum_{\sigma \in S_n}\sum_{i=1}^n \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \\ \times \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma(j)}}
+%	\end{gathered}
+%	\end{gather}
+	In this case, if $\sigma(j)$ is $p$ or $q$, then the product over $j$ will be zero. However, since $j$ loops over all but one element, it must be that $\sigma(j) = p$ or $\sigma(j)=q$ for some $j\neq i$. Thus, for all permutations, this product is zero and
+	\begin{equation}
+	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = 0
+	\end{equation}
+	
+	The matrix element of the two electron operator reduces the same way as before to Equation \eqref{eq:gexp}.
+%	\begin{gather}
+%	\begin{gathered}
+%	\bra{\psi_1}\frac{1}{2}\sum_{i=1}^n\sum_{j\neq i}^n \hat g_{ij}\ket{\psi_2} = \\ 
+%	\frac{1}{2}\frac{1}{n!} \sum_{\sigma \in S_n} \sum_{i \neq j}^n  \text{sign}(\sigma) \\ \times \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right] \\
+%	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+%	\end{gathered}
+%	\end{gather}
+	Again, $\sigma(k)$ must not be equal to $p$ or $q$ ($k$ or $l$) if the term is to be nonzero. This forces $\sigma(i) = p$ and $\sigma(j) = k$ or the reverse ($k$ and $l$ for $\ket{\psi_1}$).
+		\begin{gather}
+	\begin{gathered}
+	= \frac{1}{2}\frac{1}{n!} \sum_{i \neq j}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} - \right.
+	\\ \left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} \right] \\
+	+ \left[ \bra{\phi_{l}\phi_{k}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} \right] 
+	\end{gathered}
+	\end{gather}
+	The first and third term are equal after switching the dummy variable of integration. Same applies to the second and fourth term. There are $n^2-n = n(n-1)$ terms in the sum over $i \neq j$ and there are $(n-2)!$ permutations of the other $n-2$ elements.
+	\begin{gather}
+	\begin{gathered}
+	= \frac{1}{2}\frac{1}{n!}2 n(n-1)(n-2)! \\ \times \left[ \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} - \right.
+	\left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} \right] \\
+	\end{gathered}\\
+	=(kp|lq) - (kq|lp)
+	\end{gather}
+	
+	And for the zero electron operator.
+	\begin{gather}
+	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
+	\end{gather}
+	
+	\item The matrix element of the one electron operator reduces to Equation \eqref{eq:hexp}. Again, if $\sigma(j)$ is $p, q,$ or $r$, the term in the sum is zero. Since the product loops over all but one element, it must be that $\sigma(j)$ takes on one of these values and so the sum totals to zero.
+		\begin{equation}
+	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = 0
+	\end{equation}
+	
+	The matrix element of the two electron operator reduces to Equation \eqref{eq:gexp}. If $\sigma(k)$ takes on $p$, $q$, or $r$, then the term in the sum is zero. However, since $k$ loops over all but two elements, it must take on at least one of these values in the repeated product. So every term in the sum must be zero.
+		\begin{equation}
+	\bra{\psi_1}\sum_{j>i}^n \hat g_{ij} \ket{\psi_2} = 0
+	\end{equation}
+	
+	The matrix element of the zero electron operator is
+		\begin{gather}
+	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
 	\end{gather}
 	
 \end{enumerate}

@@ -17,48 +17,45 @@
    calculataion. This helps avoid numerical instability. Though, a Givens rotation may be a better way to orthogonalize
    the basis). Since I need some vectors to be unnormalized, this function does not automatically orthogonalize the new vector
 */
-Eigen::VectorXd GramSchmidt(Eigen::VectorXd NextVector, std::vector< Eigen::VectorXd > PreviousVectors)
+void GramSchmidt(Eigen::VectorXf &NextVector, const std::vector< Eigen::VectorXf > &PreviousVectors)
 {
-    Eigen::VectorXd OrthogonalVector = NextVector;
     for(int i = 0; i < PreviousVectors.size(); i++)
     {
-        OrthogonalVector = OrthogonalVector - ((PreviousVectors[i].dot(OrthogonalVector))/PreviousVectors[i].dot(PreviousVectors[i])) * PreviousVectors[i];
+        NextVector = NextVector - ((PreviousVectors[i].dot(NextVector))/PreviousVectors[i].dot(PreviousVectors[i])) * PreviousVectors[i];
     }
     // OrthogonalVector = OrthogonalVector / sqrt(OrthogonalVector.dot(OrthogonalVector)); // Need to check tolerance before normalization.
-    return OrthogonalVector;
 }
 
 /* 
    The following function takes a set of vectors and reorthogonalizes them using GramSchmidt, which
    allows us to avoid the accumulation of numerical error
 */
-std::vector< Eigen::VectorXd > Reorthogonalize(std::vector< Eigen::VectorXd > BVectors)
+void Reorthogonalize(std::vector< Eigen::VectorXf > &BVectors)
 {
-    std::vector< Eigen::VectorXd > NewBVectors;
+    std::vector< Eigen::VectorXf > NewBVectors;
     NewBVectors.push_back(BVectors[0]);
-    Eigen::VectorXd b;
+    // Eigen::VectorXf b;
     for(int k = 1; k < BVectors.size(); k++)
     {
-        b = GramSchmidt(BVectors[k], NewBVectors);
-        b /= b.norm();
-        NewBVectors.push_back(b);
+        GramSchmidt(BVectors[k], NewBVectors);
+        BVectors[k] /= BVectors[k].norm();
+        NewBVectors.push_back(BVectors[k]);
     }
-    return NewBVectors;
 }
 /* 
    The following is the Davidson algorithm to diagonalize a matrix.
    The formulation is taken directly from Lui's paper and his steps are marked in the program. 
 */
-void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV) // The Hamiltonian, the dimension of the Hamiltonian, the number of eigenvalues we want to find (Lui calls this M), and the starting size of the subspace.
+void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV) // The Hamiltonian, the dimension of the Hamiltonian, the number of eigenvalues we want to find (Lui calls this M), and the starting size of the subspace.
 {
-    std::vector< Eigen::VectorXd > BVectors; // This holds the basis of our subspace. We add to this list each iteration.
+    std::vector< Eigen::VectorXf > BVectors; // This holds the basis of our subspace. We add to this list each iteration.
 
     double Tolerance = 10E-6;
 
     for(int i = 0; i < L; i++)
     {
         /***** Step 1 *****/
-        Eigen::VectorXd b(Dim); // Starting set of orthornmal vectors. There are L of them and they have Dim components.
+        Eigen::VectorXf b(Dim); // Starting set of orthornmal vectors. There are L of them and they have Dim components.
         /* We initialize b to be random, orthonormal vectors, for now. */
         for(int j = 0; j < Dim; j++)
         {
@@ -72,7 +69,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
                 b[j] = 0;
             }
         }
-        b = GramSchmidt(b, BVectors);
+        GramSchmidt(b, BVectors);
         b /= b.norm(); // Orthonormalize.
         BVectors.push_back(b); // Add to list of b vectors.
     }
@@ -86,10 +83,10 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
     {
         std::cout << "FCI: Davidson iteration " << Step + 1 << std::endl; // To show us that something is happening.
 
-        std::vector< Eigen::VectorXd > HbVectors; // Hamiltonian applied to the b vectors. Better to store these since we need them later.
+        std::vector< Eigen::VectorXf > HbVectors; // Hamiltonian applied to the b vectors. Better to store these since we need them later.
         for(int i = 0; i < L; i++)
         {
-            Eigen::VectorXd Hb = Ham * BVectors[i];
+            Eigen::VectorXf Hb = Ham * BVectors[i];
             HbVectors.push_back(Hb);
         }
 
@@ -98,7 +95,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
            Here, we construct the L x L matrix G, which has elements <bi| H | bj>. This is the Hamiltonian
            in the subspace spanned by the current set of b vectors.
         */
-        Eigen::MatrixXd G =  Eigen::MatrixXd::Zero(L, L); // Hamiltonian in smaller subspace. G in Lui's paper.
+        Eigen::MatrixXf G =  Eigen::MatrixXf::Zero(L, L); // Hamiltonian in smaller subspace. G in Lui's paper.
         for(int i = 0; i < L; i++) // Place diagonal elements first.
         {
             G(i, i) = BVectors[i].dot(HbVectors[i]); // <bi | H | bi>
@@ -112,17 +109,17 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
             }
         }
 
-        Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > EigensystemG(G); // I think how Eigen orders eigenvectors here determines which ones we converge towards.
+        Eigen::SelfAdjointEigenSolver< Eigen::MatrixXf > EigensystemG(G); // I think how Eigen orders eigenvectors here determines which ones we converge towards.
         /***** Step 3 *****/
-        std::vector< Eigen::VectorXd > FVectors; // Correction vectors fk in Lui's paper.
-        std::vector< Eigen::VectorXd > DVectors; // These are the residual vectors, called dk in Lui's paper.
+        std::vector< Eigen::VectorXf > FVectors; // Correction vectors fk in Lui's paper.
+        std::vector< Eigen::VectorXf > DVectors; // These are the residual vectors, called dk in Lui's paper.
 
         int NumberFound = 0; // Counter for how many eigenvalues are found. Loop will terminate if this hits the desired number.
 
         /* Calculate the list of residual vectors, which we further use to test convergence. */
         for(int k = 0; k < NumberOfEV; k++)
         {
-            Eigen::VectorXd ResidualK = Eigen::VectorXd::Zero(Dim); // Holds the k'th residual vector.
+            Eigen::VectorXf ResidualK = Eigen::VectorXf::Zero(Dim); // Holds the k'th residual vector.
             for(int i = 0; i < L; i++) // Now we sum over terms that make the residual vector.
             {
                 ResidualK += EigensystemG.eigenvectors().col(k)[i] * (HbVectors[i] - (EigensystemG.eigenvalues()[k] * BVectors[i]));
@@ -150,7 +147,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
         /* Calculate the list of correction vectors, now that we have the residual vectors. */
         for(int k = 0; k < NumberOfEV; k++)
         {   
-            Eigen::VectorXd fk(Dim); // Holds the k'th correction vector.
+            Eigen::VectorXf fk(Dim); // Holds the k'th correction vector.
             for(int i = 0; i < Dim; i++)
             {
                 fk[i] = DVectors[k][i] / (EigensystemG.eigenvalues()[k] - Ham.coeff(i,i));
@@ -165,7 +162,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
         int m = 0; // Counts how many vectors we add. Can either be 1 up to M.
         for(int k = 0; k < NumberOfEV; k++)
         {
-            FVectors[k] = GramSchmidt(FVectors[k], BVectors); // Orthogonalize them, but don't normalize.
+            GramSchmidt(FVectors[k], BVectors); // Orthogonalize them, but don't normalize.
             if(fabs(FVectors[k].dot(FVectors[k])) > Tolerance || k == 0) // If their norm is large enough, add them to the list. Also add the first one always.
             {
                 FVectors[k] /= FVectors[k].norm();
@@ -175,7 +172,7 @@ void Davidson(Eigen::SparseMatrix<double> Ham, int Dim, int NumberOfEV, int L, s
         }
 
         /***** Step 6 *****/
-        BVectors = Reorthogonalize(BVectors); // To avoid numerical error, we reorthogonalize this set.
+        Reorthogonalize(BVectors); // To avoid numerical error, we reorthogonalize this set.
 
         /***** Step 7 *****/
         L += m;
