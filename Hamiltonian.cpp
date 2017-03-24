@@ -10,6 +10,11 @@
 #include <map>
 #include "ReadInput.h"
 #include <fstream>
+#include <Eigen/SpectrA/SymEigsSolver.h>
+#include <Eigen/SpectrA/MatOp/SparseGenMatProd.h>
+#include <Eigen/Core>
+#include <Eigen/SparseCore>
+#include <Eigen/SpectrA/Util/SelectionRule.h>
 
 void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV);
 
@@ -270,13 +275,13 @@ int main(int argc, char* argv[])
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
-    int L = NumberOfEV + 100; // Dimension of starting subspace in Davidson Diagonalization
+    int L = NumberOfEV + 2; // Dimension of starting subspace in Davidson Diagonalization
     if(L > Dim)
     {
         L = NumberOfEV;
     }
     int DegOfParallel = omp_get_max_threads(); // Degree of parallelization, currently set to max.
-    double MatTol = 10E-6; // Zeros elements below this threshold, significiantly reduces storage requirements.
+    double MatTol = 0;//10E-12; // Zeros elements below this threshold, significiantly reduces storage requirements.
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -702,6 +707,11 @@ int main(int argc, char* argv[])
     std::cout << "FCI: Hamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
     Output << "\nHamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
+    Eigen::MatrixXf HD = Ham;
+    std::ofstream PrintHam("printham.out");
+    PrintHam << HD << std::endl;
+    //return 0;
+    
     Timer = omp_get_wtime();
     std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
     std::vector< double > DavidsonEV;
@@ -714,18 +724,35 @@ int main(int argc, char* argv[])
         Output << "\n" << DavidsonEV[k];
     }
 
-    Timer = omp_get_wtime();
-    std::cout << "FCI: Beginning Direct Diagonalization... ";
-    Eigen::MatrixXf HamDense = Ham;
-    Eigen::SelfAdjointEigenSolver< Eigen::MatrixXf > HamEV;
-    HamEV.compute(HamDense);
-    std::cout << " done" << std::endl;
-    std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues() << std::endl;
-    std::cout << "FCI: Direct Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
-    Output << "\nDirect Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
-    Output << HamEV.eigenvalues() << std::endl;
+    /* This section is for direct diagonalization. Uncomment if desired. */
+     Timer = omp_get_wtime();
+     std::cout << "FCI: Beginning Direct Diagonalization... ";
+     Eigen::MatrixXf HamDense = Ham;
+     Eigen::SelfAdjointEigenSolver< Eigen::MatrixXf > HamEV;
+     HamEV.compute(HamDense);
+
+     std::cout << " done" << std::endl;
+     std::cout << "FCI: Direct Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+     Output << "\nDirect Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
+     std::cout << "FCI: The eigenvaues are";
+     for(int k = 0; k < NumberOfEV; k++)
+     {
+         std::cout << "\n" << HamEV.eigenvalues()[k];
+         Output << "\n" << HamEV.eigenvalues()[k];
+     }
+
+    /* This part is not needed */
+    // Spectra::SparseGenMatProd<float> op(Ham);
+    // Spectra::SymEigsSolver< float, Spectra::LARGEST_MAGN, Spectra::SparseGenMatProd<float> > HamEV(&op, NumberOfEV, Dim / 10);
+    // HamEV.init();
+    // int nconv = HamEV.compute();
+    // std::cout << " done" << std::endl;
+    // std::cout << "FCI: The eigenvalues are\n" << HamEV.eigenvalues() << std::endl;
+    // std::cout << "FCI: Direct Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+    // Output << "\nDirect Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
+    // Output << HamEV.eigenvalues() << std::endl;
     
-    std::cout << "FCI: Total running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
+    std::cout << "\nFCI: Total running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
     Output << "\nTotal running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
     // std::ofstream OutputHamiltonian(Input.OutputName + ".ham");

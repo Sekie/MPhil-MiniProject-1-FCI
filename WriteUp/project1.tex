@@ -131,7 +131,7 @@
 CB2 1EW}
 
 \begin{abstract}
-Tom Brady is the G.O.A.T.
+In this study, the method of full configuration interaction (FCI) to solve the electronic Schr\"{o}dinger Equation was implemented. The electronic Hamiltonian was diagonalized in a space of Slater determinants. The Davidson diagonalization algorithm was utilized and compared against a typical QR diagonalization routine, showing significant improvement in speed and no discernible loss in accuracy for LiH. This implementation of FCI was benchmarked against previous FCI calculations of the ground electronic states of BH and H$_2$O and a satisfactory agreement was found. The correlation energy was found to be large for these molecules, especially in the limit of dissociation.
 \end{abstract}
 
 \end{frontmatter}
@@ -224,7 +224,7 @@ From the HF method,\cite{roothaan} multiple spin orbitals can be obtained. The $
 + \cdots
 \end{gathered}
 \end{equation}
-Truncation at the first term gives the HF wavefunction. Truncation at the second term gives the CIS wavefunction. Truncation at the third term gives the CISD wavefunction, and so on. Inclusion of all $\binom{n+m}{n}$ terms gives the FCI wavefunction.
+Truncation at the first term gives the HF wavefunction. Truncation at the second term gives the CIS wavefunction. Truncation at the third term gives the CISD wavefunction, and so on. Inclusion of all terms gives the FCI wavefunction.
 
 \subsection{Slater-Condon Rules} \label{sec:condonrules}
 In order to solve Equation \eqref{eq:elproblem} using Equation \eqref{eq:fciwf}, the Hamiltonian matrix, $\mathcal H$ has to be diagonalized in the space of determinants. The matrix elements of $\mathcal H$ are given by
@@ -248,7 +248,7 @@ where
 \end{subequations}
 and $\hat V_{NN}$ is defined in Equation \eqref{eq:vnn}.
 
-The Slater-Condon rules are now presented. These rules are derived in \ref{app:slatercondon}. Consider two slater determinants $\ket{\psi_1}$ and $\ket{\psi_2}$ with maximum matching orbitals. This means that spin orbitals shared by both determinants are ordered so that they are in the same position within both determinants, with the caveat that each transpose changes the sign of the determinant. In the following equations, $i$ and $j$ indexes shared orbitals. The index on the operators are dropped when the operator acts on a dummy integration variable. The notation $(kl|pq)$ is also defined as
+The Slater-Condon rules are now presented. Consider two slater determinants $\ket{\psi_1}$ and $\ket{\psi_2}$ with maximum matching orbitals. This means that spin orbitals shared by both determinants are ordered so that they are in the same position within both determinants, with the caveat that each transpose changes the sign of the determinant. In the following equations, $i$ and $j$ indexes shared orbitals. The index on the operators are dropped when the operator acts on a dummy integration variable. The notation $(kl|pq)$ is also defined as
 \begin{equation}
 (kl|pq) = \int \phi_k^*(\mathbf{r})\phi_p^*(\mathbf{r}^\prime) \frac{1}{|\mathbf{r}-\mathbf{r}^\prime|} \phi_l(\mathbf{r}) \phi_q(\mathbf{r}^\prime) \mathrm{d}\mathbf{r}\mathrm{d}\mathbf{r}^\prime 
 \end{equation}
@@ -293,30 +293,54 @@ It is clear that setting up an FCI calculation requires the evaluation of many i
 
 \section{Procedure}
 
-In this study, the FCI Hamiltonian matrix for one geometry of BH and three different geometries of H$_2$O was generated using the Slater-Condon rules presented in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The value of these integrals were evaluated in the electronic structure package, Q-Chem 4.4.1.\cite{qchem} The Hamiltonian matrices were then diagonalized using the Davidson diagonalization algorithm\cite{davidson,liu} to find the lowest eigenvalue. This algorithm will be discussed in Section \ref{sec:davidson}.
+In this study, the FCI Hamiltonian matrix for one geometry of BH and three different geometries of H$_2$O was generated using the Slater-Condon rules presented in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The electronic structure package, Q-Chem,\cite{qchem} was used to conduct an initial HF calculation and then to obtain the integrals in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The Hamiltonian matrices were then diagonalized using the Davidson diagonalization algorithm\cite{davidson,liu} to find the lowest eigenvalue. This algorithm will be discussed in Section \ref{sec:davidson}. The FCI results will be compared to the initial HF calculation done in Q-Chem and literature results\cite{handy-1983} in Section \ref{sec:results}.
+
+The Eigen library was used for matrix and vector algebra.\cite{eigen} OpenMP was used to parallelize the generation of the matrix and Eigen's implementation of OpenMP was used to parallelize the diagonalization algorithm.\cite{openmp} The matrix was stored in sparse matrix form with single precision entries. All matrix elements less than 10$^{-15}$ $E_h$ were not stored in the matrix to reduce memory costs. Q-Chem was carried out on a single 12-core computer. The matrix generation and diagonalization was carried out on a single computer with a quad-core processor and 64GB of RAM.
 
 \subsection{Computational Details} \label{sec:integrals}
 
 %Q-Chem was used to compute the integrals in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. These integrals were used to form the FCI Hamiltonian matrix for one geometry of BH and three geometries of H$_2$O. The geometries are listed in Table \ref{tab:geo}
 Table \ref{tab:geo} contains a summary of the geometry used in the calculations of each molecule studied.
 
-For BH, the bond length was set to the equilibrium bond length of 1.2449 \AA.\cite{cccbdb} A basis of 6-31G* was used for the calculation of the integrals in Q-Chem. 
+For BH, the bond length was set to the equilibrium bond length of 1.2325 \AA. A DZ* Dunning basis\cite{dunning} was used for the HF calculation and the calculation of the integrals in Q-Chem, as was used in a previous study by Knowles and Handy.\cite{handy-1983} The calculation involved 6 electrons and 20 orbitals. The determinant space was spanned by 1299600 determinants.
 
-For H$_2$O, the HOH angle was set to 110.565$^\circ$ and O---H bond lengths were varied between three different values listed in Table \ref{tab:geo}. To calculate the integrals at each geometry, a DZ quality basis was used. These geometries and the basis match those used in a previous work.\cite{handy-1983}
-
+For H$_2$O, the HOH angle was set to 110.565$^\circ$ and O---H bond lengths were varied between three different values listed in Table \ref{tab:geo}. The first geometry corresponds to the equilibrium geometry. The second and third geometries correspond to points along the symmetric stretch. To calculate the HF energy and integrals at each geometry, a DZ basis was used. These geometries and the basis match those used in a previous work.\cite{handy-1983} The calculation involved 10 electrons and 14 orbitals for each geometry. In each calculation, the determinant space was spanned by 4008004 determinants.
 \begin{table}
 \centering
 \begin{tabular}{l|c}
 \hline\hline
 & Bond Length (\AA) \\ \hline
-BH & 1.2449 \\ \hline
+BH & 1.2325 \\ \hline
 H$_2$O (1) & 0.9755\\
 H$_2$O (2) & 1.4633\\
 H$_2$O (3) & 1.9510\\ \hline\hline
 \end{tabular}
-\caption{The geometries of BH and H$_2$O used in the calculations. Bond length refers to the B---H bond for BH and both O---H bonds for H$_2$O. The HOH bond angle is set at 110.565$^\circ$.}
+\caption{The geometries of BH and H$_2$O used in the calculations. Bond length refers to the B---H bond for BH and both O---H bonds for H$_2$O. The HOH bond angle is set at 110.565$^\circ$. The geometry for BH and the first geometry for H$_2$O correspond to equilibrium geometries.}
 \label{tab:geo}
 \end{table}
+
+\subsection{Complete Diagonalization} \label{sec:qr}
+All complete diagonalizations were conducted using the Eigen library.\cite{eigen} Eigen uses a QR algorithm\cite{qr} for complete diagonalization, and this algorithm will be summarized in this section.
+
+At each step in the QR algorithm, the current matrix is decomposed into its QR decomposition, $H_k = Q_kR_k$ where $Q_k$ is orthogonal and $R_k$ is upper triangular. The next matrix is generated as $H_{k+1} = R_kQ_k$. This converges to a triangular matrix, and the eigenvalues are then the diagonal elements of the triangular matrix. A pseudo-code is presented in Algorithm \ref{alg:qr}.
+
+\begin{algorithm}
+ Read in $N \times N$ Hamiltonian matrix\;
+ 
+ Choose a set of orthonormal basis vectors $\{\mathbf{e}^i\}$ with $i = 1,  \ldots, N$\;
+ 
+ \While{$H$ is not triangular}{
+ Form $R$ with elements $R_{ij} = \sum_I^N e^i_I H_{Ij}$ for $j \geq i$ and $R_{ij} = 0$ otherwise\;
+ 
+ Form $Q = (\mathbf{e}^1, \ldots, \mathbf{e}^N)$\;
+ 
+ $H \leftarrow RQ$
+ }
+ The eigenvalues are $H_{ii}$ for $i = 1, \ldots, N$\;
+\caption{The QR algorithm to find all eigenvalues of an $N 
+\times N$ matrix, $H$.} 
+\label{alg:qr}
+\end{algorithm}
 
 \subsection{Davidson Diagonalization} \label{sec:davidson}
 The size of the determinant space can be over one million determinants. The cost of diagonalizing the full Hamiltonian matrix in Equation \eqref{eq:hmat} is usually prohibitively large. %In this study, the package Eigen for C++ was utilized to diagonalize the full Hamiltonian.\cite{eigen} Eigen uses a QR iterative algorithm that has a cubic cost and cubic convergence.\cite{qr}
@@ -339,7 +363,7 @@ Because of the nature of our problem, a full diagonalization is not necessary. T
   	$\mathbf{d}^k \leftarrow \sum_i^L a_i^k(A - \lambda^k) \mathbf{b}^i$\;
   	\If{$\mathbf{d}^k \cdot \mathbf{d}^k < 10^{-3}$}
   	{
-  		$EVFound = EVFound \cup \{(\lambda^k, \mathbf{a}^k)\}$\;
+  		$EVFound \leftarrow EVFound \cup \{(\lambda^k, \mathbf{a}^k)\}$\;
   	}
   }
   
@@ -352,7 +376,7 @@ Because of the nature of our problem, a full diagonalization is not necessary. T
   {
   	\For{I = 1, \ldots, N}
   	{
-  		$f_I^k = (\lambda^k - H_{II})^{-1}d_I^k$\;
+  		$f_I^k \leftarrow (\lambda^k - H_{II})^{-1}d_I^k$\;
   	}
   	Form residual vector $\mathbf{f}^k = (f_1^k, \ldots, f_N^k)$\;
   }
@@ -382,234 +406,252 @@ Because of the nature of our problem, a full diagonalization is not necessary. T
 \label{alg:davidson}
 \end{algorithm}
 
-\section{Results}
-\subsection{BH} \label{sec:bhresults}
-%Talk about number of electrons and orbitals
-The results are compared to a FCI calculation using a 6-31G* basis.\cite{cccbdb}
+\section{Results} \label{sec:results}
+\subsection{Comparison of QR and Davidson Diagonalization}
+The memory required to store and diagonalize an FCI matrix is prohibitively large, especially for the systems under consideration in the following sections. Therefore, the Davidson algorithm is called upon to obtain the eigenvalues of these matrices. In order to test the validity of the Davidson method, an analysis on a smaller system, LiH, was conducted. The FCI Hamiltonian for LiH was generated in a 6-31G* basis. The bond length was set to 1.6531 \AA. The calculation involved 4 electrons in a space of 17 orbitals. The determinant space was spanned by 18496 determinants. Two different methods of diagonalization were tested. The first method utilized the QR algorithm detailed in Section \ref{sec:qr} as implemented in Eigen\cite{eigen} and the second method utilized the Davidson algorithm in Section \ref{sec:davidson}. The result are compared to an FCI result from CCCBDB.\cite{cccbdb} The wall time taken to complete each calculation is also recorded. The results are listed in Table \ref{tab:lihresults}.
+
 \begin{table}
-\begin{tabular}{l|cc} \hline\hline
-& Previous Work\cite{cccbdb} & This Work \\ \hline
-Energy ($E_h$) & -25.2023 & -25.2013 \\ \hline\hline
+\centering
+\begin{tabular}{l|ccc} \hline\hline
+& Lit\cite{cccbdb} & Davidson & QR \\ \hline
+FCI Energy ($E_h$) & 8.003 & 8.003 & 8.003 \\
+Time (s) & --- & 47 & 2271 \\ \hline\hline
 \end{tabular}
-\caption{Calculated ground state energies of BH at the geometry specified in Table \ref{tab:geo}.}
-\label{tab:bhresults}
+\caption{FCI calculations of LiH using different diagonalization techniques. The energy eigenvalues and wall time of each calculation are listed.}
+\label{tab:lihresults}
 \end{table}
+
+It is seen that the eigenvalues obtained through direct (QR) diagonalization agree numerically with those obtained through iterative (Davidson) diagonalization. This lends credibility that the Davidson algorithm yields the correct eigenvalues. Both methods yield results that agree with literature values. However, there is a substantial difference in time taken to complete these calculations. Both time and computer memory become prohibitive factors as the space of determinant grows and for that reason, the following sections will utilize only the Davidson diagonalization method to obtain the eigenvalues of the FCI matrix.
+
+
+\begin{table}
+\centering
+\begin{tabular}{l|c|ccc} \hline\hline
+& FCI (Lit) \cite{handy-1983} & FCI & HF & $E_{\text{corr}}$ \\ \hline
+BH & -25.228 & -25.229 &-25.124 & -0.105 \\ \hline
+H$_2$O (1) & -76.158 & -76.159 & -76.010 & -0.149 \\ 
+H$_2$O (2) & -76.014 & -76.014 & -75.804 & -0.210 \\
+H$_2$O (3) & -75.905 & -75.904 & -75.595 & -0.309 \\\hline\hline
+\end{tabular}
+\caption{Calculated ground state energies of BH at the geometry specified in Table \ref{tab:geo}. All units are in hartrees.}
+\label{tab:results}
+\end{table}
+\subsection{BH} \label{sec:bhresults}
+The results of the FCI and HF calculation of BH in a DZ* Dunning basis are listed in Table \ref{tab:results}. The correlation energy is calculated as $E_{\text{FCI}} = E_{\text{FCI}} - E_{\text{HF}}$. Also listed is the FCI energy calculated from a previous study by Knowles and Handy.\cite{handy-1983}. The FCI energy from this study (-25.229 $E_h$) and from the previous study (-25.228 $E_h$) differ by 10$^{-3}$ $E_h$, which is good and lends credibility to the calculations in this study. The disagreement between the two calculations is likely a result of numerical instability in the implementation of the Davidson diagonalization used in this paper, which involves repeated orthogonalization of a set of vectors.
+
+%The FCI energy from this study (-25.2295 $E_h$) and from the previous study (-25.2276 $E_h$) differ by 0.0019 $E_h$, which is very good and lends credibility to the calculations in this study.
+
+The HF calculation returned an energy of -25.1239 $E_h$, which means that the HF calculation neglects a correlation energy of -0.1056 $E_h$. This is a significant amount of correlation energy, implying that post-HF methods should be applied to study BH.
+
 
 \subsection{H$_2$O} \label{sec:h2oresults}
-The results are compared to a previous study by Knowles and Handy.\cite{handy-1983} In that study, the same geometry and basis (DZ) was used as was used in this study.
+The results of the FCI and HF calculation of H$_2$O in a DZ basis is listed in Table \ref{tab:results} for all three geometries of H$_2$O tested in this study. Also listed is the FCI ground state energy determined by Knowles and Handy using the same geometry and basis.\cite{handy-1983} Correlation energy is calculated as $E_{\text{corr}} = E_{\text{FCI}} - E_{\text{HF}}$. The FCI ground state energies of this study all agree with the previous study to within 10$^{-3}$ $E_h$. %0.0017 $E_h$ at worst.
 
-\begin{table}
-\begin{tabular}{l|cc} \hline\hline
-& Previous Work\cite{handy-1983} & This Work \\ \hline
-Geometry 1 & -76.1579 & -76.1581 \\ 
-Geometry 2 & -76.0145 & -76.0126 \\
-Geometry 3 & -75.9052 & -75.9023 \\\hline\hline
-\end{tabular}
-\caption{Calculated ground state energies in hartrees of H$_2$O at geometries specified in Table \ref{tab:geo}.}
-\end{table}
+Of particular interest is the progression of correlation energy as H$_2$O moves away from equilibrium geometry. The correlation energy at equilibrium geometry is -0.149 $E_h$, and this grows to -0.210 $E_h$ and -0.309 $E_h$ at 1.5 and 2 times the equilibrium bond lengths respectively. This illustrates that the HF prediction of ground state energy decays in quality as the molecule moves away from equilibrium, and hence potential energy surfaces computed using HF are prone to large errors. Higher levels of theory or the unrestricted formulation of HF (UHF) should be applied to cases such as dissociation, when the molecule moves far away from its equilibrium geometry.
+
+It is also worth noting that the FCI calculation for Geometry 3 in the previous study cost four hours.\cite{handy-1983} That study was conducted in 1983. The FCI calculation in this study cost 39 minutes. Although FCI is expensive, it is still practical for many molecules and is becoming more effective as computing power develops.
 
 
 \section{Conclusions and Outlook}
 \label{sect:Concl}
-The electronic energies of the ground states of BH and H$_2$O were computed through an FCI analysis. The electronic Hamiltonian for these molecules were diagonalized in a space of all Slater determinants using integrals calculated from Q-Chem.
+The electronic energies of the ground states of BH and H$_2$O were computed at the FCI and HF levels of theory. The electronic FCI Hamiltonian for these molecules were diagonalized in a space of Slater determinants using integrals calculated from Q-Chem. The Davidson diagonalization algorithm was implemented for the diagonalization. An implementation utilizing Davidson diagonalization was compared to an implementation using QR diagonalization for LiH. Both implementations gave the same results, but the Davidson diagonalization was significantly faster. The FCI results agree well with a previous study\cite{handy-1983} and it is seen that correlation energy grows rapidly as the molecule moves away from its equilibrium geometry.
 
-Although computationally costly, FCI still feasible for a wide range of molecules and is effective in determining the most accurate electronic energies possible for these molecules. The Davidson diagonalization algorithm implemented in this study proved to be an efficient method to obtain the lower eigenvalues of the Hamiltonian. In future studies, a vectorized algorithm will be implemented to circumvent the need to store the Hamiltonian matrix and take advantage of parallelized computer architectures.\cite{handy-1983} It will also be worthwhile to compare the FCI results to results from truncated CI, such as CISD, and to results using CC methods to judge the relative accuracy of other methods.
+Although computationally costly, FCI remains feasible for a wide range of molecules and is effective in determining the most accurate electronic energies possible for these molecules. The Davidson diagonalization algorithm implemented in this study proved to be an efficient method to obtain the lower eigenvalues of the Hamiltonian. In future studies, a vectorized algorithm will be implemented to circumvent the need to store the Hamiltonian matrix and take advantage of parallelized computer architectures.\cite{handy-1983} It will also be worthwhile to compare the FCI results to results from truncated CI, such as CISD, and to results using CC methods to judge the relative accuracy of other methods. In this study, the correlation energy was determined, but it will be more insightful to test how much of the correlation energy is recovered with the inclusion of singles, doubles, and so on.
 
 \section*{Acknowledgements}
-Here I acknowledge the assistance of my supervisor, my industrial sponsor,
-and the effects of caffeine on my ability to produce this report on time.
+I thank my supervisor, Dr.\ Alex Thom, and the rest of my group for their guidance and patience. I would also like to thank the Sir Winston Churchill Foundation of the USA for funding.
 
 %% The Appendices part is started with the command \appendix;
 %% appendix sections are then done as normal sections
-\appendix
+%\appendix
 
-\section{Derivation of the Slater-Condon Rules}
-\label{app:slatercondon}
-For the derivation, the slater determinant will be written in the form
-\begin{equation}
-|\phi_1 \ldots \phi_n| = \dfrac{1}{\sqrt{n!}}\sum_{\sigma\in S_n} \text{sign}(\sigma) \phi_{\sigma(1)}(\mathbf{r}_1) \cdots \phi_{\sigma(n)}(\mathbf{r}_n)
-\end{equation}
-where $S_n$ denotes the permutation group of $n$ elements and sign($\sigma$) is +1 for even permutations, -1 for odd permutations. The proofs are presented below, proved in the same order as presented in Section \ref{sec:condonrules} and using the same notation.
-
-\begin{enumerate}
-	\item For the one element operator matrix element, 
-	\begin{gather}
-	\bra{\psi_1}\sum_i\hat h_i\ket{\psi_1}\\ 
-	\begin{gathered}
-	= \frac{1}{n!}\sum_{\sigma\sigma^\prime \in S_n} \sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime)
-	 \\ \times \bra{\phi_{\sigma(1)} \cdots \phi_{\sigma(n)}}\hat h_i \ket{\phi_{\sigma^\prime(1)} \cdots \phi_{\sigma^\prime(n)}} 
-	\end{gathered} \\
-	 \begin{gathered} = \frac{1}{n!}\sum_{\sigma\sigma^\prime \in S_n} \sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
-	 \times \bra{\phi_{\sigma(i)}} \hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{k\neq i}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
-	 \end{gathered}
-	\end{gather}
-	Because the spin orbitals are orthonormal, the product is zero when $\sigma \neq \sigma^\prime$ and is unity otherwise.
-	\begin{gather}
-	= \frac{1}{n!} \sum_{\sigma \in S_n} \text{sign}(\sigma)^2\sum_{i=1}^n \bra{\phi_{\sigma(i)}} \hat h_i \ket{\phi_{\sigma(i)}}
-	\end{gather}
-	The sign term squares to one always. For any $\sigma$, the second sum will be the same and there are $n!$ possible $\sigma$.
-	\begin{gather}
-	= \sum_{i=1}^n \bra{\phi_i}\hat h_i \ket{\phi_i}
-	\end{gather}
-	
-	For the two electron operator matrix element,
-	\begin{gather}
-	\bra{\psi_1}\sum_{i<j}^n\hat g_{ij}\ket{\psi_1} \\
-	\begin{gathered}
-	= \frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i < j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
-	\times \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma^\prime(i)}\phi_{\sigma^\prime(j)}} \\
-	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
-	\end{gathered}
-	\end{gather}
-	The third line is zero unless $\sigma$ and $\sigma^\prime$ agree for all $k$ not equal to $i$ or $j$. In this case, $\sigma$ and $\sigma^\prime$ may agree for $i$ and $j$, or switch so that $\sigma(i) = \sigma^\prime(j)$. In the latter case, the relative sign of $\sigma^\prime$ is opposite as well.
-	\begin{gather}
-	\begin{gathered}
-	= \frac{1}{n!} \sum_{\sigma \in S_n} \text{sign}(\sigma) \\ \times \sum_{i < j}^n \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right]
-	\end{gathered} \\
-	\begin{gathered}
-	= \frac{n!}{n!} \sum_{i < j}^n \left[ \bra{\phi_i\phi_j}\hat g_{ij} \ket{\phi_i\phi_j} - \right.\\ \left. \bra{\phi_i\phi_j}\hat g_{ij} \ket{\phi_j\phi_i} \right]
-	\end{gathered} \\
-	= \sum_{i < j}^n \left[ (ii|jj) - (ij|ij) \right]
-	\end{gather}
-	Finally, the zero electron operator gives
-	\begin{equation}
-	\bra{\psi_1}\hat V_{NN} \ket{\psi_1} = V_{NN} \bra{\psi_1}\ket{\psi_1} = V_{NN}
-	\end{equation}
-	
-	\item For the one electron operator matrix element,
-	\begin{gather}
-	\begin{gathered}
-	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
-	\times \bra{\cdots\phi_{\sigma(k)}\cdots} \hat h_i \ket{\cdots\phi_{\sigma^\prime(p)}\cdots}
-	\end{gathered}
-	\end{gather}
-	The position of the unique orbital will be denoted $p$, but if $p$ appears in the bra, it implies $k$.
-	\begin{gather}
-	\begin{gathered}
-	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
-	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma^\prime(j)}}
-	%\times \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(p)}}
-	\end{gathered}
-	\end{gather}
-	Again, $\sigma$ and $\sigma^\prime$ must agree to be nonzero.
-	\begin{gather} \label{eq:hexp}
-	\begin{gathered}
-	 \frac{1}{n!} \sum_{\sigma \in S_n}\sum_{i=1}^n \text{sign}(\sigma)^2 \\
-	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma(j)}}
-	\end{gathered}
-	\end{gather}
-	In this case, another possibility is that $\sigma(j) = p$. Since $\phi_p$ is not an orbital in $\ket{\psi_1}$, the term above is zero whenever $\sigma(j) = p$ for all $j \neq i$. This forces $\sigma(i) = p$ and correspondingly, $\sigma(i) = k$ in the bra. The repeated product is then unity. If $i$ is fixed to $k$ or $p$, then there are $(n-1)!$ ways to permute the remaining elements.
-	\begin{gather}
-	 \frac{1}{n!}(n-1)!\sum_{i=1}^n \bra{\phi_{k}}\hat h_i \ket{\phi_{p}} \\
-	 \frac{1}{n!}n(n-1)!\bra{\phi_{k}}\hat h \ket{\phi_{p}} \\
-	 \bra{\phi_k}\hat h \ket{\phi_p}
-	\end{gather}
-	
-	For the matrix element of the two electron operator,
-	\begin{gather}
-	\bra{\psi_1}\frac{1}{2}\sum_{i=1}^n\sum_{j\neq i}^n \hat g_{ij}\ket{\psi_2} \\
-	\begin{gathered}
-	= \frac{1}{2}\frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i \neq j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
-	\times \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma^\prime(i)}\phi_{\sigma^\prime(j)}} \\
-	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
-	\end{gathered}
-	\end{gather}
-	Again, the third term is zero whenever $\sigma$ and $\sigma^\prime$ disagree on $k \neq i,j$, so among the nonzero permutations are the ones which fix $i$ and $j$, and which switch $i$ and $j$.
-	\begin{gather} \label{eq:gexp}
-	\begin{gathered}
-	= \frac{1}{2}\frac{1}{n!} \sum_{\sigma \in S_n} \sum_{i \neq j}^n  \text{sign}(\sigma) \\ \times \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right] \\
-	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
-	\end{gathered}
-	\end{gather}
-	The repeated product over $k$ is zero whenever $\sigma(k) = p$ (or $k$ in $\ket{\psi_1}$) because that orbital is not contained in $\ket{\psi_1}$. Hence, it must be that the only nonzero permutations are ones such that $\sigma(i) = p$ or $\sigma(j) = p$.
-	\begin{gather}
-	\begin{gathered}
-	= \frac{1}{2}\frac{1}{n!} \sum_{i \neq j}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(j)}} - \right.
-	\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{p}} \right] \\
-	+ \left[ \bra{\phi_{\sigma(i)}\phi_{k}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} \right] 
-	\end{gathered}
-	\end{gather}
-	If $i = j$, then the first and fourth term will cancel out, as well as the second and third term, so we can remove the restriction on the sum. Moreover, the dummy variable of integration can be exchanged on the first and third term to show that these terms are the same, when summed over $i$ and $j$. The same is true for the second and fourth terms.
-	\begin{gather}
-	\begin{gathered}
-	= \frac{1}{2}\frac{1}{n!} \sum_{j = 1}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(j)}} - \right.
-	\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{p}} \right] \\
-	+ \sum_{i = 1}^n \left[ \bra{\phi_{\sigma(i)}\phi_{k}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} \right] 
-	\end{gathered} \\
-	\begin{gathered}
-	= \frac{1}{2}\frac{1}{n!} 2 \sum_{i = 1}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} - \right.
-	\\ \left. \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} \right]
-	\end{gathered} \\
-	= \frac{2\cdot n!}{2\cdot n!} \sum_{i = 1}^n \left[(kp|ii) - (ki|ip)\right] \\
-	= \sum_{i = 1}^n \left[(kp|ii) - (ki|ip)\right]
-	\end{gather}
-	
-	Finally, the matrix element of the zero electron operator is
-	\begin{gather}
-	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
-	\end{gather}
-	
-	\item For the one electron operator, the matrix element reduces the same way as was done in previous cases to Equation \eqref{eq:hexp}.
+%\section{Derivation of the Slater-Condon Rules}
+%\label{app:slatercondon}
+%For the derivation, the slater determinant will be written in the form
+%\begin{equation}
+%|\phi_1 \ldots \phi_n| = \dfrac{1}{\sqrt{n!}}\sum_{\sigma\in S_n} \text{sign}(\sigma) \phi_{\sigma(1)}(\mathbf{r}_1) \cdots \phi_{\sigma(n)}(\mathbf{r}_n)
+%\end{equation}
+%where $S_n$ denotes the permutation group of $n$ elements and sign($\sigma$) is +1 for even permutations, -1 for odd permutations. The proofs are presented below, proved in the same order as presented in Section \ref{sec:condonrules} and using the same notation.
+%
+%\begin{enumerate}
+%	\item For the one element operator matrix element, 
 %	\begin{gather}
+%	\bra{\psi_1}\sum_i\hat h_i\ket{\psi_1}\\ 
 %	\begin{gathered}
-%	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
-%	\times \bra{\cdots\phi_{\sigma(k)}\phi_{\sigma(l)}\cdots} \hat h_i \ket{\cdots\phi_{\sigma^\prime(p)}\phi_{\sigma(q)}\cdots}
+%	= \frac{1}{n!}\sum_{\sigma\sigma^\prime \in S_n} \sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime)
+%	 \\ \times \bra{\phi_{\sigma(1)} \cdots \phi_{\sigma(n)}}\hat h_i \ket{\phi_{\sigma^\prime(1)} \cdots \phi_{\sigma^\prime(n)}} 
 %	\end{gathered} \\
-%		\begin{gathered}
-%	 =\frac{1}{n!} \sum_{\sigma \in S_n}\sum_{i=1}^n \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \\ \times \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma(j)}}
-%	\end{gathered}
+%	 \begin{gathered} = \frac{1}{n!}\sum_{\sigma\sigma^\prime \in S_n} \sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+%	 \times \bra{\phi_{\sigma(i)}} \hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{k\neq i}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+%	 \end{gathered}
 %	\end{gather}
-	In this case, if $\sigma(j)$ is $p$ or $q$, then the product over $j$ will be zero. However, since $j$ loops over all but one element, it must be that $\sigma(j) = p$ or $\sigma(j)=q$ for some $j\neq i$. Thus, for all permutations, this product is zero and
-	\begin{equation}
-	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = 0
-	\end{equation}
-	
-	The matrix element of the two electron operator reduces the same way as before to Equation \eqref{eq:gexp}.
+%	Because the spin orbitals are orthonormal, the product is zero when $\sigma \neq \sigma^\prime$ and is unity otherwise.
 %	\begin{gather}
+%	= \frac{1}{n!} \sum_{\sigma \in S_n} \text{sign}(\sigma)^2\sum_{i=1}^n \bra{\phi_{\sigma(i)}} \hat h_i \ket{\phi_{\sigma(i)}}
+%	\end{gather}
+%	The sign term squares to one always. For any $\sigma$, the second sum will be the same and there are $n!$ possible $\sigma$.
+%	\begin{gather}
+%	= \sum_{i=1}^n \bra{\phi_i}\hat h_i \ket{\phi_i}
+%	\end{gather}
+%	
+%	For the two electron operator matrix element,
+%	\begin{gather}
+%	\bra{\psi_1}\sum_{i<j}^n\hat g_{ij}\ket{\psi_1} \\
 %	\begin{gathered}
-%	\bra{\psi_1}\frac{1}{2}\sum_{i=1}^n\sum_{j\neq i}^n \hat g_{ij}\ket{\psi_2} = \\ 
-%	\frac{1}{2}\frac{1}{n!} \sum_{\sigma \in S_n} \sum_{i \neq j}^n  \text{sign}(\sigma) \\ \times \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right] \\
+%	= \frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i < j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+%	\times \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma^\prime(i)}\phi_{\sigma^\prime(j)}} \\
 %	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
 %	\end{gathered}
 %	\end{gather}
-	Again, $\sigma(k)$ must not be equal to $p$ or $q$ ($k$ or $l$) if the term is to be nonzero. This forces $\sigma(i) = p$ and $\sigma(j) = k$ or the reverse ($k$ and $l$ for $\ket{\psi_1}$).
-		\begin{gather}
-	\begin{gathered}
-	= \frac{1}{2}\frac{1}{n!} \sum_{i \neq j}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} - \right.
-	\\ \left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} \right] \\
-	+ \left[ \bra{\phi_{l}\phi_{k}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} \right] 
-	\end{gathered}
-	\end{gather}
-	The first and third term are equal after switching the dummy variable of integration. Same applies to the second and fourth term. There are $n^2-n = n(n-1)$ terms in the sum over $i \neq j$ and there are $(n-2)!$ permutations of the other $n-2$ elements.
-	\begin{gather}
-	\begin{gathered}
-	= \frac{1}{2}\frac{1}{n!}2 n(n-1)(n-2)! \\ \times \left[ \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} - \right.
-	\left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} \right] \\
-	\end{gathered}\\
-	=(kp|lq) - (kq|lp)
-	\end{gather}
-	
-	And for the zero electron operator.
-	\begin{gather}
-	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
-	\end{gather}
-	
-	\item The matrix element of the one electron operator reduces to Equation \eqref{eq:hexp}. Again, if $\sigma(j)$ is $p, q,$ or $r$, the term in the sum is zero. Since the product loops over all but one element, it must be that $\sigma(j)$ takes on one of these values and so the sum totals to zero.
-		\begin{equation}
-	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = 0
-	\end{equation}
-	
-	The matrix element of the two electron operator reduces to Equation \eqref{eq:gexp}. If $\sigma(k)$ takes on $p$, $q$, or $r$, then the term in the sum is zero. However, since $k$ loops over all but two elements, it must take on at least one of these values in the repeated product. So every term in the sum must be zero.
-		\begin{equation}
-	\bra{\psi_1}\sum_{j>i}^n \hat g_{ij} \ket{\psi_2} = 0
-	\end{equation}
-	
-	The matrix element of the zero electron operator is
-		\begin{gather}
-	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
-	\end{gather}
-	
-\end{enumerate}
+%	The third line is zero unless $\sigma$ and $\sigma^\prime$ agree for all $k$ not equal to $i$ or $j$. In this case, $\sigma$ and $\sigma^\prime$ may agree for $i$ and $j$, or switch so that $\sigma(i) = \sigma^\prime(j)$. In the latter case, the relative sign of $\sigma^\prime$ is opposite as well.
+%	\begin{gather}
+%	\begin{gathered}
+%	= \frac{1}{n!} \sum_{\sigma \in S_n} \text{sign}(\sigma) \\ \times \sum_{i < j}^n \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right]
+%	\end{gathered} \\
+%	\begin{gathered}
+%	= \frac{n!}{n!} \sum_{i < j}^n \left[ \bra{\phi_i\phi_j}\hat g_{ij} \ket{\phi_i\phi_j} - \right.\\ \left. \bra{\phi_i\phi_j}\hat g_{ij} \ket{\phi_j\phi_i} \right]
+%	\end{gathered} \\
+%	= \sum_{i < j}^n \left[ (ii|jj) - (ij|ij) \right]
+%	\end{gather}
+%	Finally, the zero electron operator gives
+%	\begin{equation}
+%	\bra{\psi_1}\hat V_{NN} \ket{\psi_1} = V_{NN} \bra{\psi_1}\ket{\psi_1} = V_{NN}
+%	\end{equation}
+%	
+%	\item For the one electron operator matrix element,
+%	\begin{gather}
+%	\begin{gathered}
+%	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+%	\times \bra{\cdots\phi_{\sigma(k)}\cdots} \hat h_i \ket{\cdots\phi_{\sigma^\prime(p)}\cdots}
+%	\end{gathered}
+%	\end{gather}
+%	The position of the unique orbital will be denoted $p$, but if $p$ appears in the bra, it implies $k$.
+%	\begin{gather}
+%	\begin{gathered}
+%	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+%	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma^\prime(i)}} \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma^\prime(j)}}
+%	%\times \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(p)}}
+%	\end{gathered}
+%	\end{gather}
+%	Again, $\sigma$ and $\sigma^\prime$ must agree to be nonzero.
+%	\begin{gather} \label{eq:hexp}
+%	\begin{gathered}
+%	 \frac{1}{n!} \sum_{\sigma \in S_n}\sum_{i=1}^n \text{sign}(\sigma)^2 \\
+%	\times \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma(j)}}
+%	\end{gathered}
+%	\end{gather}
+%	In this case, another possibility is that $\sigma(j) = p$. Since $\phi_p$ is not an orbital in $\ket{\psi_1}$, the term above is zero whenever $\sigma(j) = p$ for all $j \neq i$. This forces $\sigma(i) = p$ and correspondingly, $\sigma(i) = k$ in the bra. The repeated product is then unity. If $i$ is fixed to $k$ or $p$, then there are $(n-1)!$ ways to permute the remaining elements.
+%	\begin{gather}
+%	 \frac{1}{n!}(n-1)!\sum_{i=1}^n \bra{\phi_{k}}\hat h_i \ket{\phi_{p}} \\
+%	 \frac{1}{n!}n(n-1)!\bra{\phi_{k}}\hat h \ket{\phi_{p}} \\
+%	 \bra{\phi_k}\hat h \ket{\phi_p}
+%	\end{gather}
+%	
+%	For the matrix element of the two electron operator,
+%	\begin{gather}
+%	\bra{\psi_1}\frac{1}{2}\sum_{i=1}^n\sum_{j\neq i}^n \hat g_{ij}\ket{\psi_2} \\
+%	\begin{gathered}
+%	= \frac{1}{2}\frac{1}{n!}\sum_{\sigma\sigma^\prime\in S_n} \sum_{i \neq j}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+%	\times \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma^\prime(i)}\phi_{\sigma^\prime(j)}} \\
+%	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+%	\end{gathered}
+%	\end{gather}
+%	Again, the third term is zero whenever $\sigma$ and $\sigma^\prime$ disagree on $k \neq i,j$, so among the nonzero permutations are the ones which fix $i$ and $j$, and which switch $i$ and $j$.
+%	\begin{gather} \label{eq:gexp}
+%	\begin{gathered}
+%	= \frac{1}{2}\frac{1}{n!} \sum_{\sigma \in S_n} \sum_{i \neq j}^n  \text{sign}(\sigma) \\ \times \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right] \\
+%	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+%	\end{gathered}
+%	\end{gather}
+%	The repeated product over $k$ is zero whenever $\sigma(k) = p$ (or $k$ in $\ket{\psi_1}$) because that orbital is not contained in $\ket{\psi_1}$. Hence, it must be that the only nonzero permutations are ones such that $\sigma(i) = p$ or $\sigma(j) = p$.
+%	\begin{gather}
+%	\begin{gathered}
+%	= \frac{1}{2}\frac{1}{n!} \sum_{i \neq j}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(j)}} - \right.
+%	\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{p}} \right] \\
+%	+ \left[ \bra{\phi_{\sigma(i)}\phi_{k}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} \right] 
+%	\end{gathered}
+%	\end{gather}
+%	If $i = j$, then the first and fourth term will cancel out, as well as the second and third term, so we can remove the restriction on the sum. Moreover, the dummy variable of integration can be exchanged on the first and third term to show that these terms are the same, when summed over $i$ and $j$. The same is true for the second and fourth terms.
+%	\begin{gather}
+%	\begin{gathered}
+%	= \frac{1}{2}\frac{1}{n!} \sum_{j = 1}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(j)}} - \right.
+%	\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{p}} \right] \\
+%	+ \sum_{i = 1}^n \left[ \bra{\phi_{\sigma(i)}\phi_{k}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} \right] 
+%	\end{gathered} \\
+%	\begin{gathered}
+%	= \frac{1}{2}\frac{1}{n!} 2 \sum_{i = 1}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{p}\phi_{\sigma(i)}} - \right.
+%	\\ \left. \bra{\phi_{k}\phi_{\sigma(i)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{p}} \right]
+%	\end{gathered} \\
+%	= \frac{2\cdot n!}{2\cdot n!} \sum_{i = 1}^n \left[(kp|ii) - (ki|ip)\right] \\
+%	= \sum_{i = 1}^n \left[(kp|ii) - (ki|ip)\right]
+%	\end{gather}
+%	
+%	Finally, the matrix element of the zero electron operator is
+%	\begin{gather}
+%	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
+%	\end{gather}
+%	
+%	\item For the one electron operator, the matrix element reduces the same way as was done in previous cases to Equation \eqref{eq:hexp}.
+%%	\begin{gather}
+%%	\begin{gathered}
+%%	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = \\ \frac{1}{n!} \sum_{\sigma, \sigma^\prime \in S_n}\sum_{i=1}^n \text{sign}(\sigma)\text{sign}(\sigma^\prime) \\
+%%	\times \bra{\cdots\phi_{\sigma(k)}\phi_{\sigma(l)}\cdots} \hat h_i \ket{\cdots\phi_{\sigma^\prime(p)}\phi_{\sigma(q)}\cdots}
+%%	\end{gathered} \\
+%%		\begin{gathered}
+%%	 =\frac{1}{n!} \sum_{\sigma \in S_n}\sum_{i=1}^n \bra{\phi_{\sigma(i)}}\hat h_i \ket{\phi_{\sigma(i)}} \\ \times \prod_{j\neq i}^n \bra{\phi_{\sigma(j)}}\ket{\phi_{\sigma(j)}}
+%%	\end{gathered}
+%%	\end{gather}
+%	In this case, if $\sigma(j)$ is $p$ or $q$, then the product over $j$ will be zero. However, since $j$ loops over all but one element, it must be that $\sigma(j) = p$ or $\sigma(j)=q$ for some $j\neq i$. Thus, for all permutations, this product is zero and
+%	\begin{equation}
+%	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = 0
+%	\end{equation}
+%	
+%	The matrix element of the two electron operator reduces the same way as before to Equation \eqref{eq:gexp}.
+%%	\begin{gather}
+%%	\begin{gathered}
+%%	\bra{\psi_1}\frac{1}{2}\sum_{i=1}^n\sum_{j\neq i}^n \hat g_{ij}\ket{\psi_2} = \\ 
+%%	\frac{1}{2}\frac{1}{n!} \sum_{\sigma \in S_n} \sum_{i \neq j}^n  \text{sign}(\sigma) \\ \times \left[ \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(i)}\phi_{\sigma(j)}} - \right.\\ \left. \bra{\phi_{\sigma(i)}\phi_{\sigma(j)}}\hat g_{ij} \ket{\phi_{\sigma(j)}\phi_{\sigma(i)}} \right] \\
+%%	\times \prod_{k \neq i,j}^n \bra{\phi_{\sigma(k)}}\ket{\phi_{\sigma^\prime(k)}}
+%%	\end{gathered}
+%%	\end{gather}
+%	Again, $\sigma(k)$ must not be equal to $p$ or $q$ ($k$ or $l$) if the term is to be nonzero. This forces $\sigma(i) = p$ and $\sigma(j) = k$ or the reverse ($k$ and $l$ for $\ket{\psi_1}$).
+%		\begin{gather}
+%	\begin{gathered}
+%	= \frac{1}{2}\frac{1}{n!} \sum_{i \neq j}^n \sum_{\sigma\in S_n} \text{sign}(\sigma) \times \\ \left[ \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} - \right.
+%	\\ \left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} \right] \\
+%	+ \left[ \bra{\phi_{l}\phi_{k}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} - \right.\\ \left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} \right] 
+%	\end{gathered}
+%	\end{gather}
+%	The first and third term are equal after switching the dummy variable of integration. Same applies to the second and fourth term. There are $n^2-n = n(n-1)$ terms in the sum over $i \neq j$ and there are $(n-2)!$ permutations of the other $n-2$ elements.
+%	\begin{gather}
+%	\begin{gathered}
+%	= \frac{1}{2}\frac{1}{n!}2 n(n-1)(n-2)! \\ \times \left[ \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{p}\phi_{q}} - \right.
+%	\left. \bra{\phi_{k}\phi_{l}}\hat g_{ij} \ket{\phi_{q}\phi_{p}} \right] \\
+%	\end{gathered}\\
+%	=(kp|lq) - (kq|lp)
+%	\end{gather}
+%	
+%	And for the zero electron operator.
+%	\begin{gather}
+%	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
+%	\end{gather}
+%	
+%	\item The matrix element of the one electron operator reduces to Equation \eqref{eq:hexp}. Again, if $\sigma(j)$ is $p, q,$ or $r$, the term in the sum is zero. Since the product loops over all but one element, it must be that $\sigma(j)$ takes on one of these values and so the sum totals to zero.
+%		\begin{equation}
+%	\bra{\psi_1}\sum_{i=1}^n \hat h_i \ket{\psi_2} = 0
+%	\end{equation}
+%	
+%	The matrix element of the two electron operator reduces to Equation \eqref{eq:gexp}. If $\sigma(k)$ takes on $p$, $q$, or $r$, then the term in the sum is zero. However, since $k$ loops over all but two elements, it must take on at least one of these values in the repeated product. So every term in the sum must be zero.
+%		\begin{equation}
+%	\bra{\psi_1}\sum_{j>i}^n \hat g_{ij} \ket{\psi_2} = 0
+%	\end{equation}
+%	
+%	The matrix element of the zero electron operator is
+%		\begin{gather}
+%	\bra{\psi_1} \hat V_{NN} \ket{\psi_2} = V_{NN}\bra{\psi_1}\ket{\psi_2} = 0
+%	\end{gather}
+%	
+%\end{enumerate}
 
 
 

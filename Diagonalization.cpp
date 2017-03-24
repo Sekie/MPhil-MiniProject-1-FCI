@@ -50,7 +50,7 @@ void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, s
 {
     std::vector< Eigen::VectorXf > BVectors; // This holds the basis of our subspace. We add to this list each iteration.
 
-    double Tolerance = 10E-6;
+    double Tolerance = 10E-6; // 10E-6;
 
     for(int i = 0; i < L; i++)
     {
@@ -59,7 +59,7 @@ void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, s
         /* We initialize b to be random, orthonormal vectors, for now. */
         for(int j = 0; j < Dim; j++)
         {
-            //b[j] = rand();
+            // b[j] = rand();
             if(i == j)
             {
                 b[j] = 1;
@@ -69,8 +69,9 @@ void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, s
                 b[j] = 0;
             }
         }
+        b = b.normalized();
         GramSchmidt(b, BVectors);
-        b /= b.norm(); // Orthonormalize.
+        b = b.normalized();
         BVectors.push_back(b); // Add to list of b vectors.
     }
     /* 
@@ -128,8 +129,8 @@ void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, s
 
             if(fabs(ResidualK.dot(ResidualK)) < Tolerance) // If the eigenvector of G is the eigenvector of H, then we should have zero norm.
             {
-                std::cout << "FCI: Eigenvalue " << k << " converged with value " << EigensystemG.eigenvalues()[k] << 
-                " and eigenvector\n" << EigensystemG.eigenvectors().col(k) << std::endl;
+                std::cout << "FCI: Eigenvalue " << k << " converged with value " << EigensystemG.eigenvalues()[k] << std::endl;
+                // << " and eigenvector\n" << EigensystemG.eigenvectors().col(k) << std::endl;
                 NumberFound++; // Count that we've converged.
             }
         }
