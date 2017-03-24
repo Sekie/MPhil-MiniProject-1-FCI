@@ -50,7 +50,7 @@ void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, s
 {
     std::vector< Eigen::VectorXf > BVectors; // This holds the basis of our subspace. We add to this list each iteration.
 
-    double Tolerance = 10E-6; // 10E-6;
+    double Tolerance = 10E-6;
 
     for(int i = 0; i < L; i++)
     {

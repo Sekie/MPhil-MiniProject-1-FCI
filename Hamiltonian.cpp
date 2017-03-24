@@ -39,7 +39,7 @@ int BinomialCoeff(int n, int k) // n choose k
 int Z_ForIndex(int ElectronNumber, int OrbitalNumber, int NumElectrons, int NumOrbitals)
 {
     if(ElectronNumber == NumElectrons)
-    {
+    {https://www.lua.org/ftp/
         return OrbitalNumber - NumElectrons;
     }
     int Z = 0;
@@ -275,13 +275,13 @@ int main(int argc, char* argv[])
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
-    int L = NumberOfEV + 2; // Dimension of starting subspace in Davidson Diagonalization
+    int L = NumberOfEV + 100; // Dimension of starting subspace in Davidson Diagonalization
     if(L > Dim)
     {
         L = NumberOfEV;
     }
     int DegOfParallel = omp_get_max_threads(); // Degree of parallelization, currently set to max.
-    double MatTol = 0;//10E-12; // Zeros elements below this threshold, significiantly reduces storage requirements.
+    double MatTol = 10E-12; // Zeros elements below this threshold, significiantly reduces storage requirements.
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -372,7 +372,7 @@ int main(int argc, char* argv[])
 
     typedef Eigen::Triplet<float> T;
     std::vector<T> tripletList;
-    std::vector< std::vector<T> > tripletList_Private(DegOfParallel);
+    // std::vector< std::vector<T> > tripletList_Private(DegOfParallel);
 
     // tripletList.reserve(NonzeroElements);
 
@@ -399,7 +399,7 @@ int main(int argc, char* argv[])
     for(unsigned int i = 0; i < aDim; i++) // Loop through every matrix element
     {
         int Thread = omp_get_thread_num();
-        // std::vector<T> tripletList_Private;
+        std::vector<T> tripletList_Private;
         for(unsigned int j = 0; j < bDim; j++) // See above comment.
         {
             double tmpDoubleD = 0;
@@ -428,10 +428,11 @@ int main(int argc, char* argv[])
                     tmpDoubleD += TwoElectronIntegral(abOrbitalList[m], abOrbitalList[n], abOrbitalList[m], abOrbitalList[n], m_isAlpha, n_isAlpha, m_isAlpha, n_isAlpha, Input.Integrals);
                 }
             }
-            tripletList_Private[Thread].push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
+            // tripletList_Private[Thread].push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
+            tripletList_Private.push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
         }
-        // #pragma omp critical
-        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        #pragma omp critical
+        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
     std::cout << "FCI: ...diagonal elements completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
     Output << "Diagonal elements generated in " << (omp_get_wtime() - Timer)  << " seconds." << std::endl;
@@ -483,7 +484,7 @@ int main(int argc, char* argv[])
     for(unsigned int i = 0; i < aSingleDifference.size(); i++)
     {
         int Thread = omp_get_thread_num();
-        //std::vector<T> tripletList_Private;
+        std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         double tmpDouble1 = 0;
         // First, add the one electron contribution.
@@ -509,11 +510,13 @@ int main(int argc, char* argv[])
             Index1 = std::get<0>(aSingleDifference[i]) + j * aDim; // Diagonal in beta states. Hop to other beta blocks.
             Index2 = std::get<1>(aSingleDifference[i]) + j * aDim;
 
-            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
-            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
+            // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
+            // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
         }
-        // #pragma omp critical
-        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        #pragma omp critical
+        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     /* 
@@ -544,7 +547,7 @@ int main(int argc, char* argv[])
     for(unsigned int i = 0; i < bSingleDifference.size(); i++)
     {
         int Thread = omp_get_thread_num();
-        // std::vector<T> tripletList_Private;
+        std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         double tmpDouble1 = 0;
         // First, add the one electron contribution.
@@ -570,11 +573,13 @@ int main(int argc, char* argv[])
             Index1 = std::get<0>(bSingleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bSingleDifference[i]) * aDim + j;
 
-            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
-            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
+            // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
+            // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
         }
-        // #pragma omp critical
-        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        #pragma omp critical
+        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     std::cout << "FCI: ...elements differing by one spin-orbital completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
@@ -593,7 +598,7 @@ int main(int argc, char* argv[])
     for(unsigned int i = 0; i < aDoubleDifference.size(); i++)
     {
         int Thread = omp_get_thread_num();
-        // std::vector<T> tripletList_Private;
+        std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         for(unsigned int j = 0; j < bDim; j++)
         {
@@ -609,17 +614,19 @@ int main(int argc, char* argv[])
             Index1 = std::get<0>(aDoubleDifference[i]) + j * aDim;
             Index2 = std::get<1>(aDoubleDifference[i]) + j * aDim;
 
-            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
-            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
         }
-        // #pragma omp critical
-        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        #pragma omp critical
+        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
     #pragma omp parallel for
     for(unsigned int i = 0; i < bDoubleDifference.size(); i++)
     {
         int Thread = omp_get_thread_num();
-        // std::vector<T> tripletList_Private;
+        std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
 
         for(unsigned int j = 0; j < aDim; j++)
@@ -633,11 +640,13 @@ int main(int argc, char* argv[])
             Index1 = std::get<0>(bDoubleDifference[i]) * aDim + j; // Loop through each same alpha state in each beta block.
             Index2 = std::get<1>(bDoubleDifference[i]) * aDim + j;
 
-            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
-            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
         }
-        // #pragma omp critical
-        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        #pragma omp critical
+        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     /* Now Group 3. Unlike before, we don't have to loop over alpha or beta having no differences. We simply loop
@@ -646,7 +655,7 @@ int main(int argc, char* argv[])
     for(unsigned int i = 0; i < aSingleDifference.size(); i++)
     {
         int Thread = omp_get_thread_num();
-        // std::vector<T> tripletList_Private;
+        std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         for(unsigned int j = 0; j < bSingleDifference.size(); j++)
         {
@@ -659,8 +668,10 @@ int main(int argc, char* argv[])
             Index1 = std::get<0>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<1>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]);
             // Note that the sign is the product of the signs of the alpha and beta strings. This is because we can permute them independently.
-            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             /* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half 
                of the upper triangle. In particular, the upper half of each beta block in upper triangle of the full matrix
                are the only nonzero elements. We want the whole beta block in the upper triangle of the full matrix to be
@@ -685,21 +696,23 @@ int main(int argc, char* argv[])
             Index1 = std::get<1>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<0>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]); // Note that first and second are switched for alpha here.
 
-            tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
         }
-        // #pragma omp critical
-        // tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
+        #pragma omp critical
+        tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
     std::cout << "FCI: ...elements differing by two spin-orbitals completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
     Output << "Elements differing by two spin-orbitals generated in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
 
-    for(int Thread = 0; Thread < omp_get_num_threads(); Thread++)
-    {
-        tripletList.insert(tripletList.end(), tripletList_Private[Thread].begin(), tripletList_Private[Thread].end());
-        std::vector<T>().swap(tripletList_Private[Thread]); // Free up memory.
-    }
+    // for(int Thread = 0; Thread < omp_get_num_threads(); Thread++)
+    // {
+    //     tripletList.insert(tripletList.end(), tripletList_Private[Thread].begin(), tripletList_Private[Thread].end());
+    //     std::vector<T>().swap(tripletList_Private[Thread]); // Free up memory.
+    // }
 
     Ham.setFromTriplets(tripletList.begin(), tripletList.end());
     std::vector<T>().swap(tripletList);
@@ -707,10 +720,11 @@ int main(int argc, char* argv[])
     std::cout << "FCI: Hamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
     Output << "\nHamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
-    Eigen::MatrixXf HD = Ham;
-    std::ofstream PrintHam("printham.out");
-    PrintHam << HD << std::endl;
-    //return 0;
+    /* Prints matrix, used for error checking on my part */
+    // Eigen::MatrixXf HD = Ham;
+    // std::ofstream PrintHam("printham.out");
+    // PrintHam << HD << std::endl;
+    // return 0;
     
     Timer = omp_get_wtime();
     std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
