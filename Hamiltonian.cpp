@@ -39,7 +39,7 @@ int BinomialCoeff(int n, int k) // n choose k
 int Z_ForIndex(int ElectronNumber, int OrbitalNumber, int NumElectrons, int NumOrbitals)
 {
     if(ElectronNumber == NumElectrons)
-    {https://www.lua.org/ftp/
+    {
         return OrbitalNumber - NumElectrons;
     }
     int Z = 0;
@@ -280,8 +280,8 @@ int main(int argc, char* argv[])
     {
         L = NumberOfEV;
     }
-    int DegOfParallel = omp_get_max_threads(); // Degree of parallelization, currently set to max.
-    double MatTol = 10E-12; // Zeros elements below this threshold, significiantly reduces storage requirements.
+    // int DegOfParallel = omp_get_max_threads(); // Degree of parallelization, currently set to max.
+    double MatTol = 1E-12; // Zeros elements below this threshold, significiantly reduces storage requirements.
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -367,6 +367,7 @@ int main(int argc, char* argv[])
 
     std::cout << "done.\nFCI: Commencing with matrix initialization... " << std::endl;;
     Eigen::SparseMatrix<float> Ham(Dim, Dim);
+    Ham.reserve(Eigen::VectorXi::Constant(Dim,NonzeroElements));
     // clock_t Timer = clock();
     double Timer = omp_get_wtime();
 
@@ -374,7 +375,7 @@ int main(int argc, char* argv[])
     std::vector<T> tripletList;
     // std::vector< std::vector<T> > tripletList_Private(DegOfParallel);
 
-    // tripletList.reserve(NonzeroElements);
+    tripletList.reserve(NonzeroElements);
 
     /* The basis of the matrix is ordered by reverse lexicographic ordering (A,B) where A is the A'th  alpha orbital
        and B is the B'th beta orbital. Essentially, this means we have beta blocks and inside each block is a matrix for
@@ -396,9 +397,9 @@ int main(int argc, char* argv[])
         bOrbitalList.push_back(ListOrbitals(bStrings[j]));
     }
     #pragma omp parallel for
-    for(unsigned int i = 0; i < aDim; i++) // Loop through every matrix element
+    for(int i = 0; i < aDim; i++) // Loop through every matrix element
     {
-        int Thread = omp_get_thread_num();
+        // int Thread = omp_get_thread_num();
         std::vector<T> tripletList_Private;
         for(unsigned int j = 0; j < bDim; j++) // See above comment.
         {
@@ -481,9 +482,9 @@ int main(int argc, char* argv[])
       Matrix Elements: <m|h|p> + sum_n <mn||pn>
     */
     #pragma omp parallel for
-    for(unsigned int i = 0; i < aSingleDifference.size(); i++)
+    for(int i = 0; i < aSingleDifference.size(); i++)
     {
-        int Thread = omp_get_thread_num();
+        // int Thread = omp_get_thread_num();
         std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         double tmpDouble1 = 0;
@@ -544,9 +545,9 @@ int main(int argc, char* argv[])
        are: <m|h|p> + sum_n <mn||pn>
     */
     #pragma omp parallel for
-    for(unsigned int i = 0; i < bSingleDifference.size(); i++)
+    for(int i = 0; i < bSingleDifference.size(); i++)
     {
-        int Thread = omp_get_thread_num();
+        // int Thread = omp_get_thread_num();
         std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         double tmpDouble1 = 0;
@@ -595,9 +596,9 @@ int main(int argc, char* argv[])
        |...pq...>
        and the matrix element is <mn||pq> */
     #pragma omp parallel for
-    for(unsigned int i = 0; i < aDoubleDifference.size(); i++)
+    for(int i = 0; i < aDoubleDifference.size(); i++)
     {
-        int Thread = omp_get_thread_num();
+        // int Thread = omp_get_thread_num();
         std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         for(unsigned int j = 0; j < bDim; j++)
@@ -622,10 +623,11 @@ int main(int argc, char* argv[])
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
+
     #pragma omp parallel for
-    for(unsigned int i = 0; i < bDoubleDifference.size(); i++)
+    for(int i = 0; i < bDoubleDifference.size(); i++)
     {
-        int Thread = omp_get_thread_num();
+        // int Thread = omp_get_thread_num();
         std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
 
@@ -649,12 +651,16 @@ int main(int argc, char* argv[])
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
+	Ham.setFromTriplets(tripletList.begin(), tripletList.end());
+	std::vector<T>().swap(tripletList);
+
     /* Now Group 3. Unlike before, we don't have to loop over alpha or beta having no differences. We simply loop
        over both alpha and beta having one difference. */
+    MatTol = 1E-2;
     #pragma omp parallel for
-    for(unsigned int i = 0; i < aSingleDifference.size(); i++)
+    for(int i = 0; i < aSingleDifference.size(); i++)
     {
-        int Thread = omp_get_thread_num();
+        // int Thread = omp_get_thread_num();
         std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
         for(unsigned int j = 0; j < bSingleDifference.size(); j++)
@@ -664,6 +670,7 @@ int main(int argc, char* argv[])
             /* There is one alpha and one beta orbital mismatched between the bra and ket. According to the formula, we put the bra unique orbitals in first,
                which are the first two arguments, the first one alpha and the second one beta. Then the next two arguments are the unique orbitals
                of the ket. We know whether these electrons are alpha or beta. */
+
             if(fabs(tmpDouble) < MatTol) continue;
             Index1 = std::get<0>(aSingleDifference[i]) + aDim * std::get<0>(bSingleDifference[j]);
             Index2 = std::get<1>(aSingleDifference[i]) + aDim * std::get<1>(bSingleDifference[j]);
@@ -672,6 +679,8 @@ int main(int argc, char* argv[])
             // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+			// Ham.insert(Index1, Index2) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
+			// Ham.insert(Index2, Index1) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
             /* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half 
                of the upper triangle. In particular, the upper half of each beta block in upper triangle of the full matrix
                are the only nonzero elements. We want the whole beta block in the upper triangle of the full matrix to be
@@ -698,12 +707,16 @@ int main(int argc, char* argv[])
 
             // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            /* IDK why but this is the culprit to the memory issue */
+		    tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+			// Ham.insert(Index1, Index2) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
+			// Ham.insert(Index2, Index1) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
         }
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
+
 
     std::cout << "FCI: ...elements differing by two spin-orbitals completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
     Output << "Elements differing by two spin-orbitals generated in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
@@ -739,21 +752,21 @@ int main(int argc, char* argv[])
     }
 
     /* This section is for direct diagonalization. Uncomment if desired. */
-     Timer = omp_get_wtime();
-     std::cout << "FCI: Beginning Direct Diagonalization... ";
-     Eigen::MatrixXf HamDense = Ham;
-     Eigen::SelfAdjointEigenSolver< Eigen::MatrixXf > HamEV;
-     HamEV.compute(HamDense);
+    // Timer = omp_get_wtime();
+    // std::cout << "FCI: Beginning Direct Diagonalization... ";
+    // Eigen::MatrixXf HamDense = Ham;
+    // Eigen::SelfAdjointEigenSolver< Eigen::MatrixXf > HamEV;
+    // HamEV.compute(HamDense);
 
-     std::cout << " done" << std::endl;
-     std::cout << "FCI: Direct Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
-     Output << "\nDirect Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
-     std::cout << "FCI: The eigenvaues are";
-     for(int k = 0; k < NumberOfEV; k++)
-     {
-         std::cout << "\n" << HamEV.eigenvalues()[k];
-         Output << "\n" << HamEV.eigenvalues()[k];
-     }
+    // std::cout << " done" << std::endl;
+    // std::cout << "FCI: Direct Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+    // Output << "\nDirect Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
+    // std::cout << "FCI: The eigenvaues are";
+    // for(int k = 0; k < NumberOfEV; k++)
+    // {
+    //     std::cout << "\n" << HamEV.eigenvalues()[k];
+    //     Output << "\n" << HamEV.eigenvalues()[k];
+    // }
 
     /* This part is not needed */
     // Spectra::SparseGenMatProd<float> op(Ham);
