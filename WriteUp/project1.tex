@@ -131,7 +131,7 @@
 CB2 1EW}
 
 \begin{abstract}
-In this study, the method of full configuration interaction (FCI) to solve the electronic Schr\"{o}dinger Equation was implemented. The electronic Hamiltonian was diagonalized in a space of Slater determinants. The Davidson diagonalization algorithm was utilized and compared against a typical QR diagonalization routine, showing significant improvement in speed and no discernible loss in accuracy for LiH. This implementation of FCI was benchmarked against previous FCI calculations of the ground electronic states of BH and H$_2$O and a satisfactory agreement was found. The correlation energy was found to be large for these molecules, especially in the limit of dissociation.
+In this study, the method of full configuration interaction (FCI) to solve the electronic Schr\"{o}dinger Equation was implemented. The electronic Hamiltonian was diagonalized in a space of Slater determinants. The Davidson diagonalization algorithm was utilized and compared against a typical QR diagonalization routine, showing significant improvement in speed and no discernible loss in accuracy for LiH. This implementation of FCI was benchmarked against literature FCI calculations of the ground electronic states of BH and H$_2$O and a satisfactory agreement was found. The correlation energy was found to be large for these molecules, especially in the limit of dissociation.
 \end{abstract}
 
 \end{frontmatter}
@@ -159,7 +159,7 @@ In terms of choosing CSFs, many methods exist including symmetric group methods,
 
 The most expensive procedure in the CI algorithm is the diagonalization of the Hamiltonian matrix in the space of potentially millions of CSFs or determinants. However, in any CI calculation, one is typically only interested in a few lower lying solutions. Iterative methods such as the Lanczos algorithm are known to be effective for these situations.\cite{Lanczos} Davidson introduced a similar iterative algorithm that exploits the diagonal dominance of the Hamiltonian matrix to compute specific eigenvalues of the Hamiltonian without need to calculate lower eigenvalues first.\cite{davidson} Since then, a modified version of the Davidson algorithm was introduced by Liu to allow the algorithm to converge to multiple eigenvalues at once.\cite{liu}
 
-This paper will discuss the application of the FCI method on the BH and H$_2$O molecules, which have been previously studied using FCI.\cite{handy-1983} The Hamiltonian matrix will be constructed in a space of Slater determinants and the Davidson diagonalization algorithm will be implemented. 
+This paper will discuss the application of the FCI method on the BH and H$_2$O molecules, which have been previously studied using FCI.\cite{cccbdb,handy-1983} The Hamiltonian matrix will be constructed in a space of Slater determinants and the Davidson diagonalization algorithm will be implemented. 
 
 \section{Theory}
 \subsection{Electronic Problem} \label{sec:elproblem}
@@ -170,11 +170,11 @@ The molecular Hamiltonian, ignoring higher order effects such as relativistic or
 + \sum_{i < j} \dfrac{1}{|\mathbf{r}_i - \mathbf{r}_j|} + \sum_{I < J} \dfrac{Z_IZ_J}{|\mathbf{R}_I - \mathbf{R}_J|}
 \end{gathered}
 \end{equation}
-The terms in order are: nuclear kinetic energy, electronic kinetic energy, electron-nuclear attraction, electron-electron repulsion, and nuclear-nuclear repulsion. Lowercase indexes label electrons, uppercase indexes label nuclei, $\mathbf{r}_i$ denotes the cartesian coordinates of the $i$\ssth\ electron, $\mathbf{R}_I$ denotes the cartesian coordinates of the $I$\ssth\ nucleus, and $Z_I$ is the atomic number of the $I$\ssth\ nucleus. All the electron coordinates will be denoted $\mathbf{r}$ and all the nucleus coordinates will be denoted $\mathbf{R}$. The last four terms are typically defined as the electronic Hamiltonian, $\ham_e$.
+The terms in order are: nuclear kinetic energy, electronic kinetic energy, electron-nuclear attraction, electron-electron repulsion, and nuclear-nuclear repulsion. Lowercase indexes label electrons, uppercase indexes label nuclei, $\mathbf{r}_i$ denotes the cartesian coordinates of the $i$\ssth\ electron, $\mathbf{R}_I$ denotes the cartesian coordinates of the $I$\ssth\ nucleus, and $Z_I$ is the atomic number of the $I$\ssth\ nucleus. All the electron coordinates will be denoted $\mathbf{r}$ and all the nuclear coordinates will be denoted $\mathbf{R}$. The last four terms are typically defined as the electronic Hamiltonian, $\ham_e$.
 \begin{gather}
 \hat{\mathcal H} = - \sum_I \dfrac{1}{2M_I} \nabla_I^2 + \ham_e \\
 \begin{gathered}\label{eq:hame}
-\ham_e = \hat T_e + \hat V_{eN} + \hat V_{NN} + \hat V_{eN}
+\ham_e = \hat T_e + \hat V_{eN} + \hat V_{ee} + \hat V_{NN} 
 \end{gathered}
 \end{gather}
 where
@@ -185,11 +185,11 @@ where
 \begin{equation}
 \hat V_{eN} = - \sum_{iI} \dfrac{Z_I}{|\mathbf{R}_I - \mathbf{r}_i|}
 \end{equation}
-\begin{equation} \label{eq:vnn}
-\hat V_{NN} = \sum_{I < J} \dfrac{Z_IZ_J}{|\mathbf{R}_I - \mathbf{R}_J|}
-\end{equation}
 \begin{equation}
 \hat V_{ee} = \sum_{i < j} \dfrac{1}{|\mathbf{r}_i - \mathbf{r}_j|}
+\end{equation}
+\begin{equation} \label{eq:vnn}
+\hat V_{NN} = \sum_{I < J} \dfrac{Z_IZ_J}{|\mathbf{R}_I - \mathbf{R}_J|}
 \end{equation}
 \end{subequations}
 
@@ -200,7 +200,7 @@ The energy of a state is given by the eigenvalues of $\ham$. To greatly simplify
 where $E$ is the electronic energy and $\ket{\psi}$ are the electronic eigenstates. This paper focuses on solving Equation \eqref{eq:elproblem} for $E$ and $\ket{\psi}$.
 
 \subsection{FCI Wavefunction} \label{sec:wf}
-Equation \eqref{eq:elproblem} can be solved in theory by expanding $\ket{\psi}$ in a complete basis. This basis will be generated from a single reference determinant obtained from an HF calculation. 
+Equation \eqref{eq:elproblem} can be solved in theory by expanding $\ket{\psi}$ in a complete basis. The coefficients of the expansion are determined by minimizing the energy expectation functional, utilizing the variational theorem. This basis will be generated from a single reference determinant obtained from an HF calculation. 
 
 The HF method\cite{hartree,fock,roothaan} minimizes the functional
 \begin{equation}
@@ -227,7 +227,7 @@ From the HF method,\cite{roothaan} multiple spin orbitals can be obtained. The $
 Truncation at the first term gives the HF wavefunction. Truncation at the second term gives the CIS wavefunction. Truncation at the third term gives the CISD wavefunction, and so on. Inclusion of all terms gives the FCI wavefunction.
 
 \subsection{Slater-Condon Rules} \label{sec:condonrules}
-In order to solve Equation \eqref{eq:elproblem} using Equation \eqref{eq:fciwf}, the electronic Hamiltonian matrix, $\mathcal H_e$ has to be diagonalized in the space of determinants. The matrix elements of $\mathcal H_e$ are given by
+In order to solve Equation \eqref{eq:elproblem} using Equation \eqref{eq:fciwf}, the energy expectation functional, $\bra{\psi}\hat{\mathcal H}\ket{\psi} / \bra{\psi}\ket{\psi}$, has to be minimized with respect to the coefficients in Equation \eqref{eq:fciwf}. This is equivalent to diagonalizing the electronic Hamiltonian matrix, $\mathcal H_e$, in the space of determinants used in the expansion. The matrix elements of $\mathcal H_e$ are given by
 \begin{equation} \label{eq:hmat}
 \mathcal H_{e;ij} = \bra{\psi_i}\ham_e\ket{\psi_j}
 \end{equation}
@@ -248,7 +248,7 @@ where
 \end{subequations}
 and $\hat V_{NN}$ is defined in Equation \eqref{eq:vnn}.
 
-The Slater-Condon rules are now presented. Consider two slater determinants $\ket{\psi_1}$ and $\ket{\psi_2}$ with maximum matching orbitals. This means that spin orbitals shared by both determinants are ordered so that they are in the same position within both determinants, with the caveat that each transpose changes the sign of the determinant. In the following equations, $i$ and $j$ indexes shared orbitals. The index on the operators are dropped when the operator acts on a dummy integration variable. The notation $(kl|pq)$ is also defined as
+The Slater-Condon rules are now presented. Consider two slater determinants $\ket{\psi_1}$ and $\ket{\psi_2}$ with maximum matching orbitals. This means that spin orbitals shared by both determinants are ordered so that they are in the same position within both determinants, with the caveat that each transpose changes the sign of the determinant. In the following equations, $i$ and $j$ indexes shared spin orbitals. The index on the operators are dropped when the operator acts on a dummy integration variable. The notation $(kl|pq)$ is also defined as
 \begin{equation}
 (kl|pq) = \int \phi_k^*(\mathbf{r})\phi_p^*(\mathbf{r}^\prime) \frac{1}{|\mathbf{r}-\mathbf{r}^\prime|} \phi_l(\mathbf{r}) \phi_q(\mathbf{r}^\prime) \mathrm{d}\mathbf{r}\mathrm{d}\mathbf{r}^\prime 
 \end{equation}
@@ -291,21 +291,21 @@ then
 \end{subequations}
 \end{enumerate}
 
-It is clear that setting up an FCI calculation requires the evaluation of many integrals. To calculate these integrals, the spin orbitals are approximated by a sum of GTOs,\cite{gto} the number and form of which depending on the type of basis desired. STOs are rarely used because STOs must be numerically integrated, whereas GTOs have analytic integrals.\cite{szabo} The details of the basis used in this study will be discussed in Section \ref{sec:integrals}.
+It is clear that setting up an FCI calculation requires the evaluation of many integrals. To calculate these integrals, the spin orbitals are approximated by a sum of GTOs,\cite{gto} the number and form of which depending on the type of basis desired. STOs are rarely used because STOs must be numerically integrated, whereas GTOs have analytic integrals.\cite{szabo} The details of the basis used in this study will be discussed in Section \ref{sec:results}.
 
 \section{Procedure}
 
-In this study, the FCI Hamiltonian matrices for one geometry of BH and three different geometries of H$_2$O were generated using the Slater-Condon rules presented in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The electronic structure package, Q-Chem,\cite{qchem} was used to conduct an initial HF calculation and then to obtain the integrals in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The Hamiltonian matrices were then diagonalized using the Davidson diagonalization algorithm\cite{davidson,liu} to find the lowest eigenvalue. This algorithm will be discussed in Section \ref{sec:davidson}. The FCI results will be compared to the initial HF calculation done in Q-Chem and literature results\cite{handy-1983} in Section \ref{sec:results}.
+In this study, the FCI Hamiltonian matrices for one geometry of BH and three different geometries of H$_2$O were generated using the Slater-Condon rules presented in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The electronic structure package, Q-Chem,\cite{qchem} was used to conduct an initial HF calculation and then to obtain the integrals in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. The Hamiltonian matrices were then diagonalized using the Davidson diagonalization algorithm\cite{davidson,liu} to find the lowest eigenvalue. This algorithm will be discussed in Section \ref{sec:davidson}. The FCI results will be compared to the initial HF calculation done in Q-Chem and literature results\cite{cccbdb,handy-1983} in Section \ref{sec:results}.
 
 The Eigen library was used for matrix and vector algebra.\cite{eigen} OpenMP was used to parallelize the generation of the matrix and Eigen's implementation of OpenMP was used to parallelize operations used in the diagonalization algorithm.\cite{openmp} The matrix was stored in sparse matrix form with single precision entries. All matrix elements less than 10$^{-15}$ $E_h$ were not stored in the matrix to reduce memory costs. %Q-Chem was carried out on a single 12-core computer. 
 The matrix generation and diagonalization was carried out on a single computer with a quad-core processor and 64GB of RAM.
 
 %\subsection{Computational Details} \label{sec:integrals}
 
-\subsection{Complete Diagonalization} \label{sec:qr}
+\subsection{Complete (QR) Diagonalization} \label{sec:qr}
 All complete diagonalizations were conducted using the Eigen library.\cite{eigen} Eigen uses a QR algorithm\cite{qr} for complete diagonalization, and this algorithm will be summarized in this section.
 
-At each step in the QR algorithm, the current matrix is decomposed into its QR decomposition, $H_k = Q_kR_k$ where $Q_k$ is orthogonal and $R_k$ is upper triangular. The next matrix is generated as $H_{k+1} = R_kQ_k$. This converges to a triangular matrix, and the eigenvalues are then the diagonal elements of the triangular matrix. A pseudo-code is presented in Algorithm \ref{alg:qr}.
+At each step in the QR algorithm, the current matrix is decomposed into its QR decomposition, $H_k = Q_kR_k$ where $Q_k$ is orthogonal and $R_k$ is upper triangular. The next matrix is generated as $H_{k+1} = R_kQ_k$. This converges to a triangular matrix, and the eigenvalues are then the diagonal elements of the triangular matrix. A pseudo-code is presented in Algorithm \ref{alg:qr}. The cost of a QR diagonalization is $\mathcal O(N^3)$ where $N$ is the dimension of the matrix.
 
 \begin{algorithm}
  Read in $N \times N$ Hamiltonian matrix\;
@@ -328,7 +328,7 @@ At each step in the QR algorithm, the current matrix is decomposed into its QR d
 \subsection{Davidson Diagonalization} \label{sec:davidson}
 The size of the determinant space can be over one million determinants. The cost of diagonalizing the full Hamiltonian matrix in Equation \eqref{eq:hmat} is usually prohibitively large. %In this study, the package Eigen for C++ was utilized to diagonalize the full Hamiltonian.\cite{eigen} Eigen uses a QR iterative algorithm that has a cubic cost and cubic convergence.\cite{qr}
 
-Because of the nature of our problem, a full diagonalization is not necessary. The eigenvalues of Equation \eqref{eq:elproblem} are desired, but typically only the lowest lying eigenvalues are desired. Davidson introduced an iterative eigenvalue algorithm that was capable of converging to a chosen, the lowest for example, eigenvalue in a significantly shorter amount of time.\cite{davidson} Liu later adapted the algorithm to converge to multiple eigenvalues at once.\cite{liu} Liu's formulation is presented in Algorithm \ref{alg:davidson} and this is the formulation that has been implemented in this work.
+Because of the nature of our problem, a full diagonalization is not necessary. Typically, only the lowest eigenvalues of Equation \eqref{eq:elproblem} are desired. Davidson introduced an iterative eigenvalue algorithm that was capable of converging to a chosen, the lowest for example, eigenvalue in a significantly shorter amount of time.\cite{davidson} Liu later adapted the algorithm to converge to multiple eigenvalues at once.\cite{liu} Liu's formulation is presented in Algorithm \ref{alg:davidson} and this is the formulation that has been implemented in this work.
 
 \begin{algorithm}
  Read in $N \times N$ Hamiltonian matrix, $H$\;
@@ -339,7 +339,7 @@ Because of the nature of our problem, a full diagonalization is not necessary. T
  
  \While{$|EVFound| < M$}{
   Set $G_{ij} \leftarrow \mathbf{b}^{iT} H \mathbf{b}^j$\;
-  Find eigenvalues $\lambda_k$ and eigenvectors $\mathbf{a}_k$ of $G$ and keep the $M$ lowest eigenvalues\;
+  Find eigenvalues $\lambda_k$ and eigenvectors $\mathbf{a}^k$ of $G$ and keep the $M$ lowest eigenvalues\;
 
   \For{k = 1, \ldots, M}
   {
@@ -392,14 +392,14 @@ Because of the nature of our problem, a full diagonalization is not necessary. T
 \section{Results} \label{sec:results}
 
 %Q-Chem was used to compute the integrals in Equations \eqref{eq:sc0} to \eqref{eq:sc3}. These integrals were used to form the FCI Hamiltonian matrix for one geometry of BH and three geometries of H$_2$O. The geometries are listed in Table \ref{tab:geo}
-Table \ref{tab:geo} contains a summary of the geometry used in the calculations of each molecule studied.
+Table \ref{tab:geo} contains a summary of the geometries used in the calculations of each molecule studied.
 
 \begin{table}
 \centering
 \begin{tabular}{l|c}
 \hline\hline
 & Bond Length (\AA) \\ \hline
-BH & 1.2325 \\ \hline
+BH & 1.2449 \\ \hline
 H$_2$O (1) & 0.9755\\
 H$_2$O (2) & 1.4633\\
 H$_2$O (3) & 1.9510\\ \hline\hline
@@ -410,7 +410,7 @@ H$_2$O (3) & 1.9510\\ \hline\hline
 
 
 \subsection{Comparison of QR and Davidson Diagonalization}
-The memory required to store and diagonalize an FCI matrix is prohibitively large, especially for the systems under consideration in the following sections. Therefore, the Davidson algorithm is called upon to obtain the eigenvalues of these matrices. In order to test the validity of the Davidson method, an analysis on a smaller system, LiH, was conducted. The FCI Hamiltonian for LiH was generated in a 6-31G* basis. The bond length was set to 1.6531 \AA. The calculation involved 4 electrons in a space of 17 orbitals. The determinant space was spanned by 18496 determinants. Two different methods of diagonalization were tested. The first method utilized the QR algorithm detailed in Section \ref{sec:qr} as implemented in Eigen\cite{eigen} and the second method utilized the Davidson algorithm in Section \ref{sec:davidson}. The results are compared to an FCI result from the CCCBDB.\cite{cccbdb} The wall time taken to complete each calculation is also recorded. The results are listed in Table \ref{tab:lihresults}.
+The memory required to store and diagonalize an FCI matrix is prohibitively large, especially for the systems under consideration in the following sections. Therefore, the Davidson algorithm is called upon to obtain the eigenvalues of these matrices. In order to test the validity of the Davidson method, an analysis on a smaller system, LiH, was conducted. The FCI Hamiltonian for LiH was generated in a 6-31G* basis.\cite{bhbasis} The bond length was set to 1.6531 \AA. The calculation involved 4 electrons in a space of 17 orbitals. The determinant space was spanned by 18496 determinants. Two different methods of diagonalization were tested. The first method utilized the QR algorithm detailed in Section \ref{sec:qr} as implemented in Eigen\cite{eigen} and the second method utilized the Davidson algorithm in Section \ref{sec:davidson}. The results are compared to an FCI result from the CCCBDB.\cite{cccbdb} The wall time taken to complete each calculation is also recorded. The results are listed in Table \ref{tab:lihresults}.
 
 \begin{table}
 \centering
@@ -429,31 +429,31 @@ It is seen that the eigenvalues obtained through direct (QR) diagonalization agr
 \begin{table}
 \centering
 \begin{tabular}{l|c|ccc} \hline\hline
-& FCI (Lit) \cite{handy-1983} & FCI & HF & $E_{\text{corr}}$ \\ \hline
-BH & -25.228 & -25.2296 &-25.124 & -0.105 \\ \hline
-H$_2$O (1) & -76.1579 & -76.159 & -76.010 & -0.149 \\ 
-H$_2$O (2) & -76.0145 & -76.014 & -75.804 & -0.210 \\
-H$_2$O (3) & -75.9052 & -75.904 & -75.595 & -0.309 \\\hline\hline
+& FCI (Lit) & FCI & HF & $E_{\text{corr}}$ \\ \hline
+BH & -25.2206 & -25.2206 & -25.1181 & -0.1025 \\ \hline
+H$_2$O (1) & -76.1579 & -76.1579 & -76.0098 & -0.1481 \\ 
+H$_2$O (2) & -76.0145 & -76.0145 & -75.8035 & -0.2110 \\
+H$_2$O (3) & -75.9052 & -75.9052 & -75.5952 & -0.3100 \\\hline\hline
 \end{tabular}
-\caption{Calculated ground state energies of BH at the geometry specified in Table \ref{tab:geo}. All units are in hartrees.}
+\caption{Calculated ground state energies of BH at the geometry specified in Table \ref{tab:geo}. All units are in $E_h$. The calculation for BH is done using a 6-31G* basis\cite{bhbasis} and for H$_2$O is done using a DZ basis.\cite{dunning} Literature values for BH are taken from the CCCBDB\cite{cccbdb} and for H$_2$O are taken from a previous study by Harrison and Handy.\cite{handy-1983}}
 \label{tab:results}
 \end{table}
 \subsection{BH} \label{sec:bhresults}
 
-For BH, the bond length was set to the equilibrium bond length of 1.2325 \AA. A DZ* Dunning basis\cite{dunning} was used for the HF calculation and the calculation of the integrals, as was used in a previous study by Knowles and Handy.\cite{handy-1983} The calculation involved 6 electrons and 20 orbitals. The determinant space was spanned by 1299600 determinants.
+For BH, the bond length was set to the equilibrium bond length of 1.2449 \AA. A 6-31G* basis\cite{bhbasis} was used for the HF calculation and the calculation of the integrals. The calculation involved 6 electrons and 17 orbitals. The determinant space was spanned by 462400 determinants.
 
-The results of the FCI and HF calculation of BH are listed in Table \ref{tab:results}. The correlation energy is calculated as $E_{\text{FCI}} = E_{\text{FCI}} - E_{\text{HF}}$. Also listed is the FCI energy calculated from a previous study by Knowles and Handy.\cite{handy-1983}. The FCI energy from this study (-25.229 $E_h$) and from the previous study (-25.228 $E_h$) differ by 10$^{-3}$ $E_h$, which is good and lends credibility to the calculations in this study. The disagreement between the two calculations is likely a result of numerical instability in the implementation of the Davidson diagonalization used in this paper, which involves repeated orthogonalization of a set of vectors.
+The results of the FCI and HF calculation of BH are listed in Table \ref{tab:results}. The correlation energy is calculated as $E_{\text{FCI}} = E_{\text{FCI}} - E_{\text{HF}}$. Also listed is the FCI energy calculated from the CCCBDB using the same basis.\cite{cccbdb} It is noted that although Harrison and Handy have conducted an FCI analysis of BH using a DZ* basis,\cite{handy-1983} the calculations from that study study disagree with cross-tested calculations in Q-Chem. The analysis from Harrison and Handy either contains an error or the basis set is not fully documented, so for the purpose of this study the data from the CCCBDB will be used instead. The FCI energy from this study (-25.2206 $E_h$) agrees numerically to the previous study, which lends credibility to the calculations in this study. %The disagreement between the two calculations is likely a result of numerical instability in the implementation of the Davidson diagonalization used in this paper, which involves repeated orthogonalization of a set of vectors.
 
 %The FCI energy from this study (-25.2295 $E_h$) and from the previous study (-25.2276 $E_h$) differ by 0.0019 $E_h$, which is very good and lends credibility to the calculations in this study.
 
-The HF calculation returned an energy of -25.1239 $E_h$, which means that the HF calculation neglects a correlation energy of -0.1056 $E_h$. This is a significant amount of correlation energy, implying that post-HF methods should be applied to study BH.
+The HF calculation returned an energy of -25.1181 $E_h$, which means that the HF calculation neglects a correlation energy of -0.1025 $E_h$. This is a significant amount of correlation energy, implying that post-HF methods should be applied to study BH.
 
 
 \subsection{H$_2$O} \label{sec:h2oresults}
 
-For H$_2$O, the HOH angle was set to 110.565$^\circ$ and O---H bond lengths were varied between three different values listed in Table \ref{tab:geo}. The first geometry corresponds to the equilibrium geometry. The second and third geometries correspond to points along the symmetric stretch. To calculate the HF energy and integrals at each geometry, a DZ basis was used. These geometries and the basis set match those used in a previous work.\cite{handy-1983} The calculation involved 10 electrons and 14 orbitals for each geometry. In each calculation, the determinant space was spanned by 4008004 determinants.
+For H$_2$O, the HOH angle was set to 110.565$^\circ$ and O---H bond lengths were varied between three different values listed in Table \ref{tab:geo}. The first geometry corresponds to the equilibrium geometry. The second and third geometries correspond to points along the symmetric stretch. To calculate the HF energy and integrals at each geometry, a DZ basis was used.\cite{dunning} These geometries and the basis set match those used in a previous work.\cite{handy-1983} The calculation involved 10 electrons and 14 orbitals for each geometry. In each calculation, the determinant space was spanned by 4008004 determinants.
 
-The results of the FCI and HF calculation of H$_2$O are listed in Table \ref{tab:results} for all three geometries of H$_2$O tested in this study. Also listed is the FCI ground state energy determined by Knowles and Handy using the same geometry and basis.\cite{handy-1983} Correlation energy is calculated as $E_{\text{corr}} = E_{\text{FCI}} - E_{\text{HF}}$. The FCI ground state energies of this study all agree with the previous study to within 10$^{-3}$ $E_h$. %0.0017 $E_h$ at worst.
+The results of the FCI and HF calculation of H$_2$O are listed in Table \ref{tab:results} for all three geometries of H$_2$O tested in this study. Also listed is the FCI ground state energy determined by Harrison and Handy using the same geometry and basis.\cite{handy-1983} Correlation energy is calculated as $E_{\text{corr}} = E_{\text{FCI}} - E_{\text{HF}}$. The FCI ground state energies of this study all agree with the previous study to within 10$^{-3}$ $E_h$. %0.0017 $E_h$ at worst.
 
 Of particular interest is the progression of correlation energy as H$_2$O moves away from equilibrium geometry. The correlation energy at equilibrium geometry is -0.149 $E_h$, and this grows to -0.210 $E_h$ and -0.309 $E_h$ at 1.5 and 2 times the equilibrium bond lengths respectively. This illustrates that the HF prediction of ground state energy decays in quality as the molecule moves away from equilibrium, and hence potential energy surfaces computed using HF are prone to large errors. Higher levels of theory or the unrestricted formulation of HF (UHF) should be applied to cases such as dissociation, when the molecule moves far away from its equilibrium geometry.
 
@@ -462,7 +462,7 @@ It is also worth noting that the FCI calculation for Geometry 3 in the previous 
 
 \section{Conclusions and Outlook}
 \label{sect:Concl}
-The electronic energies of the ground states of BH and H$_2$O were computed at the FCI and HF levels of theory. The electronic FCI Hamiltonian for these molecules were diagonalized in a space of Slater determinants using integrals calculated from Q-Chem. The Davidson diagonalization algorithm was implemented for the diagonalization. An implementation utilizing Davidson diagonalization was compared to an implementation using QR diagonalization for LiH. Both implementations gave the same results, but the Davidson diagonalization was significantly faster. The FCI results agree well with a previous study\cite{handy-1983} and it is seen that correlation energy grows rapidly as the molecule moves away from its equilibrium geometry.
+The electronic energies of the ground states of BH and H$_2$O were computed at the FCI and HF levels of theory. The electronic FCI Hamiltonians for these molecules were diagonalized in a space of Slater determinants using integrals calculated from Q-Chem. The Davidson diagonalization algorithm was implemented for the diagonalization. An implementation utilizing Davidson diagonalization was compared to an implementation using QR diagonalization for LiH. Both implementations gave the same results, but the Davidson diagonalization was significantly faster. The FCI results agree well with a previous study\cite{handy-1983} and it is seen that correlation energy grows rapidly as the molecule moves away from its equilibrium geometry.
 
 Although computationally costly, FCI remains feasible for a wide range of molecules and is effective in determining the most accurate electronic energies possible for these molecules. The Davidson diagonalization algorithm implemented in this study proved to be an efficient method to obtain the lower eigenvalues of the Hamiltonian. In future studies, a vectorized algorithm will be implemented to circumvent the need to store the Hamiltonian matrix and take advantage of parallelized computer architectures.\cite{handy-1983} It will also be worthwhile to compare the FCI results to results from truncated CI, such as CISD, and to results using CC methods to judge the relative accuracy of other methods. In this study, the correlation energy was determined, but it will be more insightful to test how much of the correlation energy is recovered with the inclusion of singles, doubles, and so on.
 

@@ -46,11 +46,11 @@ void Reorthogonalize(std::vector< Eigen::VectorXf > &BVectors)
    The following is the Davidson algorithm to diagonalize a matrix.
    The formulation is taken directly from Lui's paper and his steps are marked in the program. 
 */
-void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV) // The Hamiltonian, the dimension of the Hamiltonian, the number of eigenvalues we want to find (Lui calls this M), and the starting size of the subspace.
+void Davidson(Eigen::SparseMatrix<float, Eigen::RowMajor> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV) // The Hamiltonian, the dimension of the Hamiltonian, the number of eigenvalues we want to find (Lui calls this M), and the starting size of the subspace.
 {
     std::vector< Eigen::VectorXf > BVectors; // This holds the basis of our subspace. We add to this list each iteration.
 
-    double Tolerance = 10E-6;
+    double Tolerance = 1E-5;
 
     for(int i = 0; i < L; i++)
     {

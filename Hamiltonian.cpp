@@ -16,7 +16,7 @@
 #include <Eigen/SparseCore>
 #include <Eigen/SpectrA/Util/SelectionRule.h>
 
-void Davidson(Eigen::SparseMatrix<float> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV);
+void Davidson(Eigen::SparseMatrix<float, Eigen::RowMajor> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV);
 
 int BinomialCoeff(int n, int k) // n choose k
 {
@@ -211,7 +211,7 @@ std::vector<unsigned short int> ListDifference(std::vector<bool> BraString, std:
 }
 
 /* This function calculated <mn||kl> and takes as arguments, the orbital numbers, the spin of the orbitals, and the map */
-double TwoElectronIntegral(unsigned short int m, unsigned short int n, unsigned short int k, unsigned short int l, bool m_isAlpha, bool n_isAlpha, bool k_isAlpha, bool l_isAlpha, std::map<std::string, double> &Integrals)
+float TwoElectronIntegral(unsigned short int m, unsigned short int n, unsigned short int k, unsigned short int l, bool m_isAlpha, bool n_isAlpha, bool k_isAlpha, bool l_isAlpha, std::map<std::string, double> &Integrals)
 {
     double mknl = 0; // First term. (mk|nl)
     double mlnk = 0; // Second term. (ml|nk)
@@ -275,13 +275,15 @@ int main(int argc, char* argv[])
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
-    int L = NumberOfEV + 100; // Dimension of starting subspace in Davidson Diagonalization
+    int L = NumberOfEV + 50; // Dimension of starting subspace in Davidson Diagonalization
     if(L > Dim)
     {
         L = NumberOfEV;
     }
-    // int DegOfParallel = omp_get_max_threads(); // Degree of parallelization, currently set to max.
-    double MatTol = 1E-12; // Zeros elements below this threshold, significiantly reduces storage requirements.
+    int NumThreads = 4; // Degree of parallelization, currently set to max.
+    omp_set_num_threads(NumThreads);
+
+    double MatTol = 1E-8; // Zeros elements below this threshold, significiantly reduces storage requirements.
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -366,14 +368,14 @@ int main(int argc, char* argv[])
     << "\nChecking " << NonzeroElements << " elements.\n" << std::endl;
 
     std::cout << "done.\nFCI: Commencing with matrix initialization... " << std::endl;;
-    Eigen::SparseMatrix<float> Ham(Dim, Dim);
-    Ham.reserve(Eigen::VectorXi::Constant(Dim,NonzeroElements));
+    Eigen::SparseMatrix<float, Eigen::RowMajor> Ham(Dim, Dim);
+    // Ham.reserve(Eigen::VectorXi::Constant(Dim,NonzeroElements));
     // clock_t Timer = clock();
     double Timer = omp_get_wtime();
 
     typedef Eigen::Triplet<float> T;
     std::vector<T> tripletList;
-    // std::vector< std::vector<T> > tripletList_Private(DegOfParallel);
+    // std::vector< std::vector<T> > tripletList_Private(NumThreads);
 
     tripletList.reserve(NonzeroElements);
 
@@ -651,19 +653,24 @@ int main(int argc, char* argv[])
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
     }
 
-	Ham.setFromTriplets(tripletList.begin(), tripletList.end());
-	std::vector<T>().swap(tripletList);
-
     /* Now Group 3. Unlike before, we don't have to loop over alpha or beta having no differences. We simply loop
        over both alpha and beta having one difference. */
-    MatTol = 1E-2;
+    int H2OMemoryWorkAround = 0;
+    if(aSingleDifference.size() > 45000) // This is a workaround for the case of H2O. Cut down memory costs
+    {
+        MatTol = 1E-4;
+        H2OMemoryWorkAround = 15000; // This is how many differences I exclude from each alpha and beta string.
+        // For H2O, the memory requirements are just too large. My work around is to increase the tolerance,
+        // and remove the highest excitations, which shouldn't contribute a great deal to the ground state.
+        // This is not systematic and I am not considering specific excitaitons.
+    }
     #pragma omp parallel for
-    for(int i = 0; i < aSingleDifference.size(); i++)
+    for(int i = 0; i < aSingleDifference.size() - H2OMemoryWorkAround; i++)
     {
         // int Thread = omp_get_thread_num();
         std::vector<T> tripletList_Private;
         unsigned int Index1, Index2;
-        for(unsigned int j = 0; j < bSingleDifference.size(); j++)
+        for(unsigned int j = 0; j < bSingleDifference.size() - H2OMemoryWorkAround; j++)
         {
             double tmpDouble;
             tmpDouble = TwoElectronIntegral(std::get<3>(aSingleDifference[i])[0], std::get<3>(bSingleDifference[j])[0], std::get<3>(aSingleDifference[i])[1], std::get<3>(bSingleDifference[j])[1], true, false, true, false, Input.Integrals);
@@ -677,10 +684,9 @@ int main(int argc, char* argv[])
             // Note that the sign is the product of the signs of the alpha and beta strings. This is because we can permute them independently.
             // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			// Ham.insert(Index1, Index2) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
-			// Ham.insert(Index2, Index1) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
+            tripletList_Private.push_back(T(Index1, Index2 , (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+			
             /* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half 
                of the upper triangle. In particular, the upper half of each beta block in upper triangle of the full matrix
                are the only nonzero elements. We want the whole beta block in the upper triangle of the full matrix to be
@@ -708,10 +714,8 @@ int main(int argc, char* argv[])
             // tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             // tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
             /* IDK why but this is the culprit to the memory issue */
-		    tripletList_Private.push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-            tripletList_Private.push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			// Ham.insert(Index1, Index2) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
-			// Ham.insert(Index2, Index1) = (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble;
+		    tripletList_Private.push_back(T(Index1, Index2 , (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+            tripletList_Private.push_back(T(Index2, Index1 , (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
         }
         #pragma omp critical
         tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
@@ -721,14 +725,14 @@ int main(int argc, char* argv[])
     std::cout << "FCI: ...elements differing by two spin-orbitals completed in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
     Output << "Elements differing by two spin-orbitals generated in " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
 
-    // for(int Thread = 0; Thread < omp_get_num_threads(); Thread++)
+    // for(int Thread = 0; Thread < NumThreads; Thread++)
     // {
     //     tripletList.insert(tripletList.end(), tripletList_Private[Thread].begin(), tripletList_Private[Thread].end());
     //     std::vector<T>().swap(tripletList_Private[Thread]); // Free up memory.
     // }
 
     Ham.setFromTriplets(tripletList.begin(), tripletList.end());
-    std::vector<T>().swap(tripletList);
+    std::vector<T>().swap(tripletList); // This clears the memory, but I'm unsure if it does or doesn't increase the memory usage to do so
 
     std::cout << "FCI: Hamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
     Output << "\nHamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
