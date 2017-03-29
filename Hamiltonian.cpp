@@ -283,7 +283,7 @@ int main(int argc, char* argv[])
     int NumThreads = 4; // Degree of parallelization, currently set to max.
     omp_set_num_threads(NumThreads);
 
-    double MatTol = 1E-8; // Zeros elements below this threshold, significiantly reduces storage requirements.
+    double MatTol = 1E-12; // Zeros elements below this threshold, significiantly reduces storage requirements.
 
     std::vector< std::vector<bool> > aStrings;
     std::vector< std::vector<bool> > bStrings;
@@ -658,7 +658,7 @@ int main(int argc, char* argv[])
     int H2OMemoryWorkAround = 0;
     if(aSingleDifference.size() > 45000) // This is a workaround for the case of H2O. Cut down memory costs
     {
-        MatTol = 1E-4;
+        // MatTol = 1E-12;
         H2OMemoryWorkAround = 15000; // This is how many differences I exclude from each alpha and beta string.
         // For H2O, the memory requirements are just too large. My work around is to increase the tolerance,
         // and remove the highest excitations, which shouldn't contribute a great deal to the ground state.

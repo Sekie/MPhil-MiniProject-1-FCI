@@ -14,7 +14,7 @@ This program is designed to calculate the FCI energies of a system using precalc
 
 ## Compiling
 
-The FCI program uses the [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) library for linear algebra. The program also utlizes the C++11 standard and has parallelization implemented using [OpenMP](http://www.openmp.org/). The following should allow for compilation of the program.
+The FCI program uses the [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) library for linear algebra. The program also utilizes the C++11 standard and has parallelization implemented using [OpenMP](http://www.openmp.org/). Note that OpenMP cannot be disabled as timing is done through OpenMP functions. The following should allow for compilation of the program.
 
 ```
 % g++ -std=c++11 -I /path/to/eigen Hamiltonian.cpp Diagonalization.cpp ReadInput.cpp -O3 -fopenmp -o FCI
@@ -32,6 +32,7 @@ The input file is formatted as such. First, a string of input parameters should 
 - (Integer, Positive) The number of beta electrons.
 - (Integer, Positive) The number of beta spin orbitals.
 - (Integer, Positive) The number of FCI solutions desired, ordered from lowest to highest.
+
 Next, the values for the two electron integrals (nm|kl) are listed in the following format
 ```
 (nm|kl)     n     m     k     l
