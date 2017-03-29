@@ -659,7 +659,7 @@ int main(int argc, char* argv[])
     if(aSingleDifference.size() > 45000) // This is a workaround for the case of H2O. Cut down memory costs
     {
         // MatTol = 1E-12;
-        H2OMemoryWorkAround = 15000; // This is how many differences I exclude from each alpha and beta string.
+        H2OMemoryWorkAround = 17000; // This is how many differences I exclude from each alpha and beta string.
         // For H2O, the memory requirements are just too large. My work around is to increase the tolerance,
         // and remove the highest excitations, which shouldn't contribute a great deal to the ground state.
         // This is not systematic and I am not considering specific excitaitons.
