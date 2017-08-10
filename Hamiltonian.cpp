@@ -15,6 +15,7 @@
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include <Eigen/SpectrA/Util/SelectionRule.h>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 void Davidson(Eigen::SparseMatrix<float, Eigen::RowMajor> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV);
 
@@ -172,6 +173,29 @@ short int FindSign(std::vector<bool> BraString, std::vector<bool> KetString)
     }
 }
 
+short int AnnihilationParity(std::vector< bool > OrbitalString, int Orbital)
+{
+	// We simply need to count how many orbitals are before the annihilated orbital, since we do one
+	// transposition for each of these orbitals.
+	int NumTransposition = 0;
+	for (int i = 0; i < Orbital; i++) // go through list of orbitals before "Orbital"
+	{
+		if (OrbitalString[i]) // means there is an orbital in the list before Orbital
+		{
+			NumTransposition++; // count a transposition.
+		}
+	}
+
+	if (NumTransposition % 2 == 0)
+	{
+		return 1;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
 /* This converts a binary string into a string of orbital numbers. For example, 01011 -> 245 */
 std::vector<unsigned short int> ListOrbitals(std::vector<bool> DeterminantString)
 {
@@ -255,6 +279,368 @@ short int CountOrbitalPosition(unsigned short int Orbital, bool isAlpha, std::ve
     return Count;
 }
 
+/* This calculates the elements < a_i,alpha^\dagger a_j,alpha + a_i,beta^\dagger a_j,beta > */
+Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vector< std::vector< bool > > aStrings, std::vector< std::vector< bool > > bStrings)
+{
+    Eigen::MatrixXd DensityMatrix(Input.aOrbitals, Input.aOrbitals);
+    for(int i = 0; i < DensityMatrix.rows(); i++)
+    {
+        for(int j = 0; j < DensityMatrix.cols(); j++)
+        {
+            double DijA = 0;
+            /* We formulate the alpha and beta density matrices separately, and add them together by element. */
+            // Determine which orbital we are looking at, since i and j loop over the CAS index and not the real orbitals.
+            int iOrbital = i;
+            int jOrbital = j;
+
+            // First, make the alpha density matrix.
+            for(int ai = 0; ai < aStrings.size(); ai++)
+            {
+                for(int bi = 0; bi < bStrings.size(); bi++)
+                {
+                    for(int aj = 0; aj < aStrings.size(); aj++)
+                    {
+                        for(int bj = 0; bj < bStrings.size(); bj++)
+                        {
+                            std::vector< bool > BraAnnil = aStrings[ai];
+                            std::vector< bool > KetAnnil = aStrings[aj];
+							short int BraSign = 1;
+							short int KetSign = 1;
+                            if(aStrings[ai][iOrbital] && aStrings[aj][jOrbital]) // If bra contains i and ket contains j, then we annihilate the orbitals.
+                            {
+								BraSign = AnnihilationParity(BraAnnil, iOrbital);
+								KetSign = AnnihilationParity(KetAnnil, jOrbital);
+                                BraAnnil[iOrbital] = false; // bra with i annihilated
+                                KetAnnil[jOrbital] = false; // ket with j annhiliated
+                            }
+                            else // Annihilated the bra or ket to zero
+                            {
+                                continue; // zero contribution
+                            }
+                            
+                            // Count the differences in the bra and ket, which is the sum of differences in the alpha and beta
+                            // components : <alpha|alpha><beta|beta>
+                            int Diff = CountDifferences(BraAnnil, KetAnnil) + CountDifferences(bStrings[bi], bStrings[bj]);
+                            if(Diff > 0)
+                            {
+                                continue;
+                            }
+                            DijA += BraSign * KetSign * Eigenvector[ai + bi * aStrings.size()] * Eigenvector[aj + bj * aStrings.size()];
+                        }
+                    }
+                }
+            }
+            DensityMatrix(i, j) = DijA;
+
+            // Now, do the same to make the beta density matrix. See above comments for explanation.
+            double DijB = 0;
+            for(int ai = 0; ai < aStrings.size(); ai++)
+            {
+                for(int bi = 0; bi < bStrings.size(); bi++)
+                {
+                    for(int aj = 0; aj < aStrings.size(); aj++)
+                    {
+                        for(int bj = 0; bj < bStrings.size(); bj++)
+                        {
+                            std::vector< bool > BraAnnil = bStrings[bi];
+                            std::vector< bool > KetAnnil = bStrings[bj];
+							short int BraSign = 1;
+							short int KetSign = 1;
+                            if(bStrings[bi][iOrbital] && bStrings[bj][jOrbital])
+                            {
+								BraSign = AnnihilationParity(BraAnnil, iOrbital);
+								KetSign = AnnihilationParity(KetAnnil, jOrbital);
+                                BraAnnil[iOrbital] = false;
+                                KetAnnil[jOrbital] = false;
+                            }
+                            else // Annihilated the bra or ket to zero
+                            {
+                                continue;
+                            }
+                            
+                            int Diff = CountDifferences(BraAnnil, KetAnnil) + CountDifferences(aStrings[ai], aStrings[aj]);
+                            if(Diff > 0)
+                            {
+                                continue;
+                            }
+                            DijB += BraSign * KetSign * Eigenvector[ai + bi * aStrings.size()] * Eigenvector[aj + bj * aStrings.size()];
+                        }
+                    }
+                }
+            }
+            DensityMatrix(i, j) += DijB;
+        } // end loop over j
+    } // end loop over i
+    return DensityMatrix;
+}
+
+/* Calculates the 2RDM with elements P_ijkl = <a^dagger_i a^dagger_j a_k a_l> - delta_jk D_il.
+However, note that given the definition of P_{ij|kl} = < a_j^dagger a_l^dagger a_i a_k > this means that the element TwoRDM(i,j,k,l) actually corresponds to P_{ki|lj} */
+Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vector< std::vector< bool > > aStrings, std::vector< std::vector< bool > > bStrings, Eigen::MatrixXd &OneRDM)
+{
+    /* Note that in order to convert to spacial orbitals, the actual element we are calculating is
+        < a^t_i,alpha a^t_j,alpha a_k,alpha a_l,alpha + a^t_i,alpha a^t_j,beta a_k,alpha a_l,beta
+          a^t_i,beta a^t_j,alpha a_k,beta a_l,alpha + a^t_i,beta a^t_j,beta a_k,beta a_l,beta >
+       We will refer to these as elements 1, 2, 3, and 4 respectively. */
+    int DimOfRDM = Input.aOrbitals;
+	Eigen::Tensor < double, 4> TwoRDM(DimOfRDM, DimOfRDM, DimOfRDM, DimOfRDM);
+	for (int i = 0; i < DimOfRDM; i++)
+	{
+		// This is the orbital associated with the index, in the CAS index.
+		int iOrbital = i;
+		for (int j = 0; j < DimOfRDM; j++)
+		{
+			int jOrbital = j;
+			for (int k = 0; k < DimOfRDM; k++)
+			{
+				int kOrbital = k;
+				for (int l = 0; l < DimOfRDM; l++)
+				{
+                    int lOrbital = l;
+                    double Pijkl = 0;
+                    // Element 1 (alpha, alpha)
+                    for(int aBra = 0; aBra < aStrings.size(); aBra++)
+                    {
+                        for(int bBra = 0; bBra < bStrings.size(); bBra++)
+                        {
+                            for(int aKet = 0; aKet < aStrings.size(); aKet++)
+                            {
+                                for(int bKet = 0; bKet < bStrings.size(); bKet++)
+                                {
+                                    // First annihilate one orbital in the bra and ket.
+                                    std::vector< bool > aBraAnnihilate = aStrings[aBra];
+                                    std::vector< bool > bBraAnnihilate = bStrings[bBra];
+                                    std::vector< bool > aKetAnnihilate = aStrings[aKet];
+                                    std::vector< bool > bKetAnnihilate = bStrings[bKet];
+									short int BraSign = 1;
+									short int KetSign = 1;
+									short int tmpInt1 = 1;
+									short int tmpInt2 = 1;
+
+                                    if(aBraAnnihilate[iOrbital] && aKetAnnihilate[lOrbital])
+                                    {
+										tmpInt1 = AnnihilationParity(aBraAnnihilate, iOrbital);
+										tmpInt2 = AnnihilationParity(aKetAnnihilate, lOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+                                        aBraAnnihilate[iOrbital] = false;
+                                        aKetAnnihilate[lOrbital] = false;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+                                    // Now annihilate another orbital, if it was already annihilated, the term is annihilated to zero and we move on.
+                                    if(aBraAnnihilate[jOrbital] && aKetAnnihilate[kOrbital])
+                                    {
+										tmpInt1 = AnnihilationParity(aBraAnnihilate, jOrbital);
+										tmpInt2 = AnnihilationParity(aKetAnnihilate, kOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+                                        aBraAnnihilate[jOrbital] = false;
+                                        aKetAnnihilate[kOrbital] = false;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+
+                                    int Diff = CountDifferences(aBraAnnihilate, aKetAnnihilate) + CountDifferences(bBraAnnihilate, bKetAnnihilate);
+                                    if(Diff > 0)
+                                    {
+                                        continue;
+                                    }
+                                    Pijkl += BraSign * KetSign * Eigenvector[aBra + bBra * aStrings.size()] * Eigenvector[aKet + bKet * aStrings.size()];
+                                }
+                            }
+                        }
+                    } // end aBra loop.
+
+                    // Element 2 (alpha, beta)
+                    for(int aBra = 0; aBra < aStrings.size(); aBra++)
+                    {
+                        for(int bBra = 0; bBra < bStrings.size(); bBra++)
+                        {
+                            for(int aKet = 0; aKet < aStrings.size(); aKet++)
+                            {
+                                for(int bKet = 0; bKet < bStrings.size(); bKet++)
+                                {
+                                    // Annihilate orbital i, j, k, and l in respective strings. There's no possibility for overlap so we can just do it all at once.
+                                    std::vector< bool > aBraAnnihilate = aStrings[aBra];
+                                    std::vector< bool > bBraAnnihilate = bStrings[bBra];
+                                    std::vector< bool > aKetAnnihilate = aStrings[aKet];
+                                    std::vector< bool > bKetAnnihilate = bStrings[bKet];
+									short int BraSign = 1;
+									short int KetSign = 1;
+									short int tmpInt1 = 1;
+									short int tmpInt2 = 1;
+
+                                    if(aBraAnnihilate[iOrbital] && bBraAnnihilate[jOrbital] && aKetAnnihilate[lOrbital] && bKetAnnihilate[kOrbital])
+                                    {
+										tmpInt1 = AnnihilationParity(aBraAnnihilate, iOrbital);
+										tmpInt2 = AnnihilationParity(aKetAnnihilate, lOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+                                        aBraAnnihilate[iOrbital] = false;
+                                        aKetAnnihilate[lOrbital] = false;
+
+										tmpInt1 = AnnihilationParity(bBraAnnihilate, jOrbital);
+										tmpInt2 = AnnihilationParity(bKetAnnihilate, kOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+										bBraAnnihilate[jOrbital] = false;
+                                        bKetAnnihilate[kOrbital] = false;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+
+                                    int Diff = CountDifferences(aBraAnnihilate, aKetAnnihilate) + CountDifferences(bBraAnnihilate, bKetAnnihilate);
+                                    if(Diff > 0)
+                                    {
+                                        continue;
+                                    }
+                                    Pijkl += BraSign * KetSign * Eigenvector[aBra + bBra * aStrings.size()] * Eigenvector[aKet + bKet * aStrings.size()];
+                                }
+                            }
+                        }
+                    } // end aBra loop.
+
+                    // Element 3 (beta, alpha)
+                    for(int aBra = 0; aBra < aStrings.size(); aBra++)
+                    {
+                        for(int bBra = 0; bBra < bStrings.size(); bBra++)
+                        {
+                            for(int aKet = 0; aKet < aStrings.size(); aKet++)
+                            {
+                                for(int bKet = 0; bKet < bStrings.size(); bKet++)
+                                {
+                                    // Annihilate orbital i, j, k, and l in respective strings. There's no possibility for overlap so we can just do it all at once.
+                                    std::vector< bool > aBraAnnihilate = aStrings[aBra];
+                                    std::vector< bool > bBraAnnihilate = bStrings[bBra];
+                                    std::vector< bool > aKetAnnihilate = aStrings[aKet];
+                                    std::vector< bool > bKetAnnihilate = bStrings[bKet];
+									short int BraSign = 1;
+									short int KetSign = 1;
+									short int tmpInt1 = 1;
+									short int tmpInt2 = 1;
+
+                                    if(bBraAnnihilate[iOrbital] && aBraAnnihilate[jOrbital] && bKetAnnihilate[lOrbital] && aKetAnnihilate[kOrbital])
+                                    {
+										tmpInt1 = AnnihilationParity(bBraAnnihilate, iOrbital);
+										tmpInt2 = AnnihilationParity(bKetAnnihilate, lOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+                                        bBraAnnihilate[iOrbital] = false;
+                                        bKetAnnihilate[lOrbital] = false;
+
+										tmpInt1 = AnnihilationParity(aBraAnnihilate, jOrbital);
+										tmpInt2 = AnnihilationParity(aKetAnnihilate, kOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+										aBraAnnihilate[jOrbital] = false;
+                                        aKetAnnihilate[kOrbital] = false;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+
+                                    int Diff = CountDifferences(aBraAnnihilate, aKetAnnihilate) + CountDifferences(bBraAnnihilate, bKetAnnihilate);
+                                    if(Diff > 0)
+                                    {
+                                        continue;
+                                    }
+                                    Pijkl += BraSign * KetSign * Eigenvector[aBra + bBra * aStrings.size()] * Eigenvector[aKet + bKet * aStrings.size()];
+                                }
+                            }
+                        }
+                    } // end aBra loop.
+
+                    // Element 4 (beta, beta)
+                    for(int aBra = 0; aBra < aStrings.size(); aBra++)
+                    {
+                        for(int bBra = 0; bBra < bStrings.size(); bBra++)
+                        {
+                            for(int aKet = 0; aKet < aStrings.size(); aKet++)
+                            {
+                                for(int bKet = 0; bKet < bStrings.size(); bKet++)
+                                {
+                                    std::vector< bool > aBraAnnihilate = aStrings[aBra];
+                                    std::vector< bool > bBraAnnihilate = bStrings[bBra];
+                                    std::vector< bool > aKetAnnihilate = aStrings[aKet];
+                                    std::vector< bool > bKetAnnihilate = bStrings[bKet];
+									short int BraSign = 1;
+									short int KetSign = 1;
+									short int tmpInt1 = 1;
+									short int tmpInt2 = 1;
+
+                                    if(bBraAnnihilate[iOrbital] && bKetAnnihilate[lOrbital])
+                                    {
+										tmpInt1 = AnnihilationParity(bBraAnnihilate, iOrbital);
+										tmpInt2 = AnnihilationParity(bKetAnnihilate, lOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+                                        bBraAnnihilate[iOrbital] = false;
+                                        bKetAnnihilate[lOrbital] = false;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+
+                                    if(bBraAnnihilate[jOrbital] && bKetAnnihilate[kOrbital])
+                                    {
+										tmpInt1 = AnnihilationParity(bBraAnnihilate, jOrbital);
+										tmpInt2 = AnnihilationParity(bKetAnnihilate, kOrbital);
+										BraSign *= tmpInt1;
+										KetSign *= tmpInt2;
+                                        bBraAnnihilate[jOrbital] = false;
+                                        bKetAnnihilate[kOrbital] = false;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+
+                                    int Diff = CountDifferences(aBraAnnihilate, aKetAnnihilate) + CountDifferences(bBraAnnihilate, bKetAnnihilate);
+                                    if(Diff > 0)
+                                    {
+                                        continue;
+                                    }
+                                    Pijkl += BraSign * KetSign * Eigenvector[aBra + bBra * aStrings.size()] * Eigenvector[aKet + bKet * aStrings.size()];
+                                }
+                            }
+                        }
+                    } // end aBra loop.
+
+                     // - delta_jk D_il
+                     //if (j == k)
+                     //{
+                     //    Pijkl -= OneRDM(i, l);
+                     //}
+
+					TwoRDM(i, j, k, l) = Pijkl;
+				} // l
+			} // k
+		} // j
+	} // i
+	return TwoRDM;
+}
+
+void PrintBinaryStrings(std::vector< std::vector< bool > > Strings)
+{
+    for(int i = 0; i < Strings.size(); i++)
+    {
+        for(int j = 0; j < Strings[i].size(); j++)
+        {
+            std::cout << Strings[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
 int main(int argc, char* argv[])
 {
     InputObj Input;
@@ -275,7 +661,7 @@ int main(int argc, char* argv[])
     int aDim = BinomialCoeff(aOrbitals, aElectrons);
     int bDim = BinomialCoeff(bOrbitals, bElectrons);
     int Dim = aDim * bDim;
-    int L = NumberOfEV + 50; // Dimension of starting subspace in Davidson Diagonalization
+    int L = NumberOfEV + 100; // Dimension of starting subspace in Davidson Diagonalization
     if(L > Dim)
     {
         L = NumberOfEV;
@@ -756,21 +1142,27 @@ int main(int argc, char* argv[])
     }
 
     /* This section is for direct diagonalization. Uncomment if desired. */
-    // Timer = omp_get_wtime();
-    // std::cout << "FCI: Beginning Direct Diagonalization... ";
-    // Eigen::MatrixXf HamDense = Ham;
-    // Eigen::SelfAdjointEigenSolver< Eigen::MatrixXf > HamEV;
-    // HamEV.compute(HamDense);
+    Timer = omp_get_wtime();
+    std::cout << "FCI: Beginning Direct Diagonalization... ";
+    Eigen::MatrixXf HamDense = Ham;
+    Eigen::SelfAdjointEigenSolver< Eigen::MatrixXf > HamEV;
+    HamEV.compute(HamDense);
 
-    // std::cout << " done" << std::endl;
-    // std::cout << "FCI: Direct Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
-    // Output << "\nDirect Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
-    // std::cout << "FCI: The eigenvaues are";
-    // for(int k = 0; k < NumberOfEV; k++)
-    // {
-    //     std::cout << "\n" << HamEV.eigenvalues()[k];
-    //     Output << "\n" << HamEV.eigenvalues()[k];
-    // }
+    std::cout << " done" << std::endl;
+    std::cout << "FCI: Direct Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+    Output << "\nDirect Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
+    std::cout << "FCI: The eigenvalues are";
+    for(int k = 0; k < NumberOfEV; k++)
+    {
+        std::cout << "\n" << HamEV.eigenvalues()[k];
+        Output << "\n" << HamEV.eigenvalues()[k];
+        Eigen::MatrixXd DensityMatrix = Form1RDM(Input, HamEV.eigenvectors().col(k), aStrings, bStrings);
+        Output << "\n1RDM\n" << 0.5 * DensityMatrix << std::endl;
+        Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > DensityEV;
+        DensityEV.compute(DensityMatrix);
+        Output << "Natural Orbitals: " << std::endl;
+        Output << DensityEV.eigenvectors() << std::endl;
+    }
 
     /* This part is not needed */
     // Spectra::SparseGenMatProd<float> op(Ham);
