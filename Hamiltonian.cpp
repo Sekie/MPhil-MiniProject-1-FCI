@@ -10,11 +10,11 @@
 #include <map>
 #include "ReadInput.h"
 #include <fstream>
-#include <Eigen/SpectrA/SymEigsSolver.h>
-#include <Eigen/SpectrA/MatOp/SparseGenMatProd.h>
+// #include <Eigen/SpectrA/SymEigsSolver.h>
+// #include <Eigen/SpectrA/MatOp/SparseGenMatProd.h>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
-#include <Eigen/SpectrA/Util/SelectionRule.h>
+// #include <Eigen/SpectrA/Util/SelectionRule.h>
 #include <unsupported/Eigen/CXX11/Tensor>
 
 void Davidson(Eigen::SparseMatrix<float, Eigen::RowMajor> &Ham, int Dim, int NumberOfEV, int L, std::vector<double> &DavidsonEV);
