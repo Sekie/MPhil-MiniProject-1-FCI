@@ -658,6 +658,9 @@ int main(int argc, char* argv[])
 	int aOrbitals = Input.aOrbitals;
 	int bOrbitals = Input.bOrbitals;
 	int NumberOfEV = Input.NumberOfEV; // Number of eigenvalues desired from Davidson Diagonalization
+	int aDimFull = BinomialCoeff(aOrbitals, aElectrons);
+	int bDimFull = BinomialCoeff(bOrbitals, bElectrons);
+	int DimFull = aDimFull * bDimFull;
 	int aDim, bDim, Dim;
 	int NumThreads = 4; // Degree of parallelization, currently set to max.
 	omp_set_num_threads(NumThreads);
@@ -665,18 +668,18 @@ int main(int argc, char* argv[])
 	/* We start with definitions for truncated CI */
 	std::string TruncatedCI; // Flag for which level of truncated CI to use.
 	TruncatedCI = "CIS";
-	//if (TruncatedCI == "FCI")
-	//{
+	if (TruncatedCI == "FCI")
+	{
 		aDim = BinomialCoeff(aOrbitals, aElectrons);
 		bDim = BinomialCoeff(bOrbitals, bElectrons);
 		Dim = aDim * bDim;
-	//}
-	//if (TruncatedCI == "CIS")
-	//{
-	//	aDim = (aOrbitals - aElectrons) * aElectrons + 1; // Number of virtual orbitals times number of occupied orbitals, plus GS.
-	//	bDim = (bOrbitals - bElectrons) * bElectrons + 1;
-	//	Dim = aDim + bDim; // Add because we don't consider single excitations from both, just one spin.
-	//}
+	}
+	if (TruncatedCI == "CIS")
+	{
+		aDim = (aOrbitals - aElectrons) * aElectrons + 1; // Number of virtual orbitals times number of occupied orbitals, plus GS.
+		bDim = (bOrbitals - bElectrons) * bElectrons + 1;
+		Dim = 1 + (aOrbitals - aElectrons) * aElectrons + (bOrbitals - bElectrons) * bElectrons; // Add because we don't consider single excitations from both, just one spin.
+	}
 
 	int L = NumberOfEV + 100; // Dimension of starting subspace in Davidson Diagonalization
 	if (L > Dim)
@@ -786,7 +789,7 @@ int main(int argc, char* argv[])
 	//}
 	//else // Means use FCI
 	//{
-		for (int i = 0; i < aDim; i++)
+		for (int i = 0; i < aDimFull; i++)
 		{
 			std::vector<bool> tmpVec;
 			GetOrbitalString(i, aElectrons, aOrbitals, tmpVec);
@@ -800,7 +803,7 @@ int main(int argc, char* argv[])
 			}
 			aStrings.push_back(tmpVec);
 		}
-		for (int i = 0; i < bDim; i++)
+		for (int i = 0; i < bDimFull; i++)
 		{
 			std::vector<bool> tmpVec;
 			GetOrbitalString(i, bElectrons, bOrbitals, tmpVec);
@@ -839,17 +842,6 @@ int main(int argc, char* argv[])
 				short int tmpInt2 = FindSign(aStrings[i], aStrings[j]);
 				std::vector<unsigned short int> tmpVec = ListDifference(aStrings[i], aStrings[j]);
 				tmpTuple = std::make_tuple(i, j, tmpInt2, tmpVec);
-				std::cout << "the two differences are" << std::endl;
-				for (int ii = 0; ii < aStrings[i].size(); ii++)
-				{
-					std::cout << aStrings[i][ii] << "\t";
-				}
-				std::cout << " and ";
-				for (int ii = 0; ii < aStrings[j].size(); ii++)
-				{
-					std::cout << aStrings[j][ii] << "\t";
-				}
-				std::cout << std::endl;
 				aDoubleDifference.push_back(tmpTuple);
 
 			}
@@ -878,8 +870,6 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-
-	std::cout << "number of dubs " << aDoubleDifference.size() << std::endl;
 
 	unsigned int NonzeroElements = Dim + aSingleDifference.size() * bDim * 2 + bSingleDifference.size() * aDim * 2 + aDoubleDifference.size() * bDim * 2
 		+ bDoubleDifference.size() * aDim * 2 + aSingleDifference.size() * bSingleDifference.size() * 4;
@@ -925,6 +915,15 @@ int main(int argc, char* argv[])
 		std::vector<T> tripletList_Private;
 		for (unsigned int j = 0; j < bOrbitalList.size(); j++) // See above comment.
 		{
+			if (TruncatedCI == "CIS")
+			{
+				int DiffA = CountDifferences(aStrings[0], aStrings[i]);
+				int DiffB = CountDifferences(bStrings[0], bStrings[j]);
+				if (DiffA + DiffB > 1)
+				{
+					continue;
+				}
+			}
 			double tmpDoubleD = 0;
 			/* Zero electron operator */
 			tmpDoubleD += NuclearEnergy; // Nuclear potential.
@@ -952,7 +951,20 @@ int main(int argc, char* argv[])
 				}
 			}
 			// tripletList_Private[Thread].push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
-			tripletList_Private.push_back(T(i + j * aOrbitalList.size(), i + j * aOrbitalList.size(), tmpDoubleD));
+			int Index;
+			if (TruncatedCI == "FCI")
+			{
+				Index = i + j * aOrbitalList.size();
+			}
+			if (TruncatedCI == "CIS")
+			{
+				Index = i; // The loop over alpha excitations.
+				if (i == 0 && j != 0) // The loop over beta excitations.
+				{
+					Index = aOrbitalList.size() + j - 1;
+				}
+			}
+			tripletList_Private.push_back(T(Index, Index, tmpDoubleD));
 		}
 		#pragma omp critical
 		tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
@@ -1015,6 +1027,11 @@ int main(int argc, char* argv[])
 		// Now, two electron contribution
 		for (unsigned int j = 0; j < bOrbitalList.size(); j++)
 		{
+			if (TruncatedCI == "CIS" && j != 0)
+			{
+				continue;
+			}
+
 			double tmpDouble2 = 0;
 			std::vector<unsigned short int> KetOrbitalList = aOrbitalList[std::get<1>(aSingleDifference[i])]; // To make the orbital list of the bra, we take the list of the current alpha determinant...
 			KetOrbitalList.insert(KetOrbitalList.end(), bOrbitalList[j].begin(), bOrbitalList[j].end()); // ...and append the beta determinant, which is the same for bra and ket.
@@ -1030,8 +1047,16 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble1 + tmpDouble2) < MatTol) continue;
 
-			Index1 = std::get<0>(aSingleDifference[i]) + j * aOrbitalList.size(); // Diagonal in beta states. Hop to other beta blocks.
-			Index2 = std::get<1>(aSingleDifference[i]) + j * aOrbitalList.size();
+			if (TruncatedCI == "FCI")
+			{
+				Index1 = std::get<0>(aSingleDifference[i]) + j * aOrbitalList.size(); // Diagonal in beta states. Hop to other beta blocks.
+				Index2 = std::get<1>(aSingleDifference[i]) + j * aOrbitalList.size();
+			}
+			if (TruncatedCI == "CIS")
+			{
+				Index1 = std::get<0>(aSingleDifference[i]);
+				Index2 = std::get<1>(aSingleDifference[i]);
+			}
 
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
@@ -1078,6 +1103,11 @@ int main(int argc, char* argv[])
 		// Now, two electron contribution
 		for (unsigned int j = 0; j < aOrbitalList.size(); j++)
 		{
+			if (TruncatedCI == "CIS" && j != 0)
+			{
+				continue;
+			}
+
 			double tmpDouble2 = 0;
 			std::vector<unsigned short int> KetOrbitalList = aOrbitalList[j]; // Same as before, but now we set the alpha orbital in front and then append the beta orbitals.
 			KetOrbitalList.insert(KetOrbitalList.end(), bOrbitalList[std::get<1>(bSingleDifference[i])].begin(), bOrbitalList[std::get<1>(bSingleDifference[i])].end());
@@ -1093,9 +1123,16 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble1 + tmpDouble2) < MatTol) continue;
 
-			Index1 = std::get<0>(bSingleDifference[i]) * aOrbitalList.size() + j; // Loop through each same alpha state in each beta block.
-			Index2 = std::get<1>(bSingleDifference[i]) * aOrbitalList.size() + j;
-
+			if (TruncatedCI == "FCI")
+			{
+				Index1 = std::get<0>(bSingleDifference[i]) * aOrbitalList.size() + j; // Loop through each same alpha state in each beta block.
+				Index2 = std::get<1>(bSingleDifference[i]) * aOrbitalList.size() + j;
+			}
+			if (TruncatedCI == "CIS")
+			{
+				Index1 = std::get<0>(bSingleDifference[i]) + aOrbitalList.size() - 1;
+				Index2 = std::get<1>(bSingleDifference[i]) + aOrbitalList.size() - 1;
+			}
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
 			tripletList_Private.push_back(T(Index1, Index2, (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
@@ -1125,6 +1162,11 @@ int main(int argc, char* argv[])
 		unsigned int Index1, Index2;
 		for (unsigned int j = 0; j < bOrbitalList.size(); j++)
 		{
+			if (TruncatedCI == "CIS" && j != 0)
+			{
+				continue;
+			}
+
 			/* This case is easier than the previous cases in that we do not need to obtain the list of similar orbitals,
 			we only need to calculate the two electron integral involving the two differing orbitals and we know that
 			both of these orbitals hold alpha electrons. */
@@ -1134,8 +1176,16 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble) < MatTol) continue;
 
-			Index1 = std::get<0>(aDoubleDifference[i]) + j * aOrbitalList.size();
-			Index2 = std::get<1>(aDoubleDifference[i]) + j * aOrbitalList.size();
+			if (TruncatedCI == "FCI")
+			{
+				Index1 = std::get<0>(aDoubleDifference[i]) + j * aOrbitalList.size();
+				Index2 = std::get<1>(aDoubleDifference[i]) + j * aOrbitalList.size();
+			}
+			if (TruncatedCI == "CIS")
+			{
+				Index1 = std::get<0>(aDoubleDifference[i]);
+				Index2 = std::get<1>(aDoubleDifference[i]);
+			}
 
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
@@ -1155,15 +1205,27 @@ int main(int argc, char* argv[])
 
 		for (unsigned int j = 0; j < aOrbitalList.size(); j++)
 		{
+			if (TruncatedCI == "CIS" && j != 0)
+			{
+				continue;
+			}
 			double tmpDouble;
 			tmpDouble = TwoElectronIntegral(std::get<3>(bDoubleDifference[i])[0], std::get<3>(bDoubleDifference[i])[1], std::get<3>(bDoubleDifference[i])[2], std::get<3>(bDoubleDifference[i])[3], false, false, false, false, Input.Integrals);
 			// The four electron differences, all of them beta electrons.
 
 			if (fabs(tmpDouble) < MatTol) continue;
 
-			Index1 = std::get<0>(bDoubleDifference[i]) * aOrbitalList.size() + j; // Loop through each same alpha state in each beta block.
-			Index2 = std::get<1>(bDoubleDifference[i]) * aOrbitalList.size() + j;
-
+			if (TruncatedCI == "FCI")
+			{
+				Index1 = std::get<0>(bDoubleDifference[i]) * aOrbitalList.size() + j; // Loop through each same alpha state in each beta block.
+				Index2 = std::get<1>(bDoubleDifference[i]) * aOrbitalList.size() + j;
+			}
+			if (TruncatedCI == "CIS")
+			{
+				Index1 = aOrbitalList.size() + std::get<0>(bDoubleDifference[i]) - 1;
+				Index2 = aOrbitalList.size() + std::get<1>(bDoubleDifference[i]) - 1;
+			}
+			
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
 			tripletList_Private.push_back(T(Index1, Index2, (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
@@ -1192,6 +1254,20 @@ int main(int argc, char* argv[])
 		unsigned int Index1, Index2;
 		for (unsigned int j = 0; j < bSingleDifference.size() - H2OMemoryWorkAround; j++)
 		{
+			if (TruncatedCI == "CIS")
+			{
+				// Check if both determinants are single excitations. I don't know a better way to do this.
+				// For the total determinant to be a single excitation, it must be that either alpha or beta is in the ground state, the first determinant.
+				if (std::get<0>(aSingleDifference[i]) != 0 && std::get<0>(bSingleDifference[j]) != 0)
+				{
+					continue;
+				}
+				if (std::get<1>(aSingleDifference[i]) != 0 && std::get<1>(bSingleDifference[j]) != 0)
+				{
+					continue;
+				}
+			}
+
 			double tmpDouble;
 			tmpDouble = TwoElectronIntegral(std::get<3>(aSingleDifference[i])[0], std::get<3>(bSingleDifference[j])[0], std::get<3>(aSingleDifference[i])[1], std::get<3>(bSingleDifference[j])[1], true, false, true, false, Input.Integrals);
 			/* There is one alpha and one beta orbital mismatched between the bra and ket. According to the formula, we put the bra unique orbitals in first,
@@ -1199,44 +1275,74 @@ int main(int argc, char* argv[])
 			of the ket. We know whether these electrons are alpha or beta. */
 
 			if (fabs(tmpDouble) < MatTol) continue;
-			Index1 = std::get<0>(aSingleDifference[i]) + aOrbitalList.size() * std::get<0>(bSingleDifference[j]);
-			Index2 = std::get<1>(aSingleDifference[i]) + aOrbitalList.size() * std::get<1>(bSingleDifference[j]);
-			// Note that the sign is the product of the signs of the alpha and beta strings. This is because we can permute them independently.
-			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			tripletList_Private.push_back(T(Index1, Index2, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			tripletList_Private.push_back(T(Index2, Index1, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
 
-			/* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half
-			of the upper triangle. In particular, the upper half of each beta block in upper triangle of the full matrix
-			are the only nonzero elements. We want the whole beta block in the upper triangle of the full matrix to be
-			nonzero where needed.
-			|            |      *   * |      *   * |
-			|            |        *   |        *   |
-			|            |          * |          * |
-			|            |            |            |
-			|____________|____________|____________|
-			|            |            |      *   * |
-			|            |            |        *   |
-			|            |            |          * |
-			|            |            |            |
-			|____________|____________|____________|
-			|            |            |            |
-			|            |            |            |
-			|            |            |            |
-			|            |            |            |
-			|____________|____________|____________|
-			So we have to include some transposed elements too. It is enough to transpose the alpha indices. this
-			transposes each block above, and we end up with a fully upper triangular matrix. */
-			Index1 = std::get<1>(aSingleDifference[i]) + aOrbitalList.size() * std::get<0>(bSingleDifference[j]);
-			Index2 = std::get<0>(aSingleDifference[i]) + aOrbitalList.size() * std::get<1>(bSingleDifference[j]); 
-			// Note that first and second are switched for alpha here.
+			if (TruncatedCI == "FCI")
+			{
+				Index1 = std::get<0>(aSingleDifference[i]) + aOrbitalList.size() * std::get<0>(bSingleDifference[j]);
+				Index2 = std::get<1>(aSingleDifference[i]) + aOrbitalList.size() * std::get<1>(bSingleDifference[j]);
+				// Note that the sign is the product of the signs of the alpha and beta strings. This is because we can permute them independently.
+				// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				tripletList_Private.push_back(T(Index1, Index2, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				tripletList_Private.push_back(T(Index2, Index1, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
 
-			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			/* IDK why but this is the culprit to the memory issue */
-			tripletList_Private.push_back(T(Index1, Index2, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
-			tripletList_Private.push_back(T(Index2, Index1, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				/* We have to be a little more careful in this case. We want the upper triangle, but this only gives us half
+				of the upper triangle. In particular, the upper half of each beta block in upper triangle of the full matrix
+				are the only nonzero elements. We want the whole beta block in the upper triangle of the full matrix to be
+				nonzero where needed.
+				|            |      *   * |      *   * |
+				|            |        *   |        *   |
+				|            |          * |          * |
+				|            |            |            |
+				|____________|____________|____________|
+				|            |            |      *   * |
+				|            |            |        *   |
+				|            |            |          * |
+				|            |            |            |
+				|____________|____________|____________|
+				|            |            |            |
+				|            |            |            |
+				|            |            |            |
+				|            |            |            |
+				|____________|____________|____________|
+				So we have to include some transposed elements too. It is enough to transpose the alpha indices. this
+				transposes each block above, and we end up with a fully upper triangular matrix. */
+				Index1 = std::get<1>(aSingleDifference[i]) + aOrbitalList.size() * std::get<0>(bSingleDifference[j]);
+				Index2 = std::get<0>(aSingleDifference[i]) + aOrbitalList.size() * std::get<1>(bSingleDifference[j]);
+				// Note that first and second are switched for alpha here.
+
+				// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i]) * (double)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				/* IDK why but this is the culprit to the memory issue */
+				tripletList_Private.push_back(T(Index1, Index2, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				tripletList_Private.push_back(T(Index2, Index1, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+			}
+			if (TruncatedCI == "CIS")
+			{
+				/* Denoting the number of the a and b determinants as ia and ib, the index we want is 
+				    if (ib == 0) index = #a 
+					if (ia == 0) index = DimA + #b - 1  */
+				if (std::get<0>(bSingleDifference[j]) == 0)
+				{
+					Index1 = std::get<0>(aSingleDifference[i]);
+				}
+				else // means ai == 0;
+				{
+					Index1 = aOrbitalList.size() + std::get<0>(bSingleDifference[j]) - 1;
+				}
+
+				if (std::get<1>(bSingleDifference[j]) == 0)
+				{
+					Index2 = std::get<1>(aSingleDifference[i]);
+				}
+				else // means ai == 0;
+				{
+					Index2 = aOrbitalList.size() + std::get<1>(bSingleDifference[j]) - 1;
+				}
+
+				tripletList_Private.push_back(T(Index1, Index2, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				tripletList_Private.push_back(T(Index2, Index1, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+			}
 		}
 		#pragma omp critical
 		tripletList.insert(tripletList.end(), tripletList_Private.begin(), tripletList_Private.end());
@@ -1259,22 +1365,22 @@ int main(int argc, char* argv[])
 	Output << "\nHamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
 	/* Prints matrix, used for error checking on my part */
-	// Eigen::MatrixXf HD = Ham;
-	// std::ofstream PrintHam("printham.out");
-	// PrintHam << HD << std::endl;
+	Eigen::MatrixXf HD = Ham;
+	std::ofstream PrintHam("printham.out");
+	PrintHam << HD << std::endl;
 	// return 0;
 
 	Timer = omp_get_wtime();
-	std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
-	std::vector< double > DavidsonEV;
-	Davidson(Ham, Dim, NumberOfEV, L, DavidsonEV);
-	std::cout << "FCI: ...done" << std::endl;
-	std::cout << "FCI: Davidson Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
-	Output << "\nDavidson Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
-	for (int k = 0; k < NumberOfEV; k++)
-	{
-		Output << "\n" << DavidsonEV[k];
-	}
+	//std::cout << "FCI: Beginning Davidson Diagonalization... " << std::endl;
+	//std::vector< double > DavidsonEV;
+	//Davidson(Ham, Dim, NumberOfEV, L, DavidsonEV);
+	//std::cout << "FCI: ...done" << std::endl;
+	//std::cout << "FCI: Davidson Diagonalization took " << (omp_get_wtime() - Timer) << " seconds." << std::endl;
+	//Output << "\nDavidson Diagonalization took " << (omp_get_wtime() - Timer) << " seconds.\nThe eigenvalues are" << std::endl;
+	//for (int k = 0; k < NumberOfEV; k++)
+	//{
+	//	Output << "\n" << DavidsonEV[k];
+	//}
 
 	/* This section is for direct diagonalization. Uncomment if desired. */
 	Timer = omp_get_wtime();
@@ -1291,12 +1397,12 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "\n" << HamEV.eigenvalues()[k];
 		Output << "\n" << HamEV.eigenvalues()[k];
-		Eigen::MatrixXd DensityMatrix = Form1RDM(Input, HamEV.eigenvectors().col(k), aStrings, bStrings);
-		Output << "\n1RDM\n" << 0.5 * DensityMatrix << std::endl;
-		Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > DensityEV;
-		DensityEV.compute(DensityMatrix);
-		Output << "Natural Orbitals: " << std::endl;
-		Output << DensityEV.eigenvectors() << std::endl;
+		//Eigen::MatrixXd DensityMatrix = Form1RDM(Input, HamEV.eigenvectors().col(k), aStrings, bStrings);
+		//Output << "\n1RDM\n" << 0.5 * DensityMatrix << std::endl;
+		//Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > DensityEV;
+		//DensityEV.compute(DensityMatrix);
+		//Output << "Natural Orbitals: " << std::endl;
+		//Output << DensityEV.eigenvectors() << std::endl;
 	}
 
 	/* This part is not needed */
@@ -1312,6 +1418,8 @@ int main(int argc, char* argv[])
 
 	std::cout << "\nFCI: Total running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 	Output << "\nTotal running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
+
+	system("pause");
 
 	// std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
 	// OutputHamiltonian << HamDense << std::endl;
