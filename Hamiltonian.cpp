@@ -285,7 +285,7 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 	Eigen::MatrixXd DensityMatrix(Input.aOrbitals, Input.aOrbitals);
 	for (int i = 0; i < DensityMatrix.rows(); i++)
 	{
-		for (int j = 0; j < DensityMatrix.cols(); j++)
+		for (int j = i; j < DensityMatrix.cols(); j++)
 		{
 			double DijA = 0;
 			/* We formulate the alpha and beta density matrices separately, and add them together by element. */
@@ -325,7 +325,44 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 							{
 								continue;
 							}
-							DijA += BraSign * KetSign * Eigenvector[ai + bi * aStrings.size()] * Eigenvector[aj + bj * aStrings.size()];
+							
+							int iIndex, jIndex;
+							if (Input.TruncatedCI == "FCI")
+							{
+								iIndex = ai + bi * aStrings.size();
+								jIndex = aj + bj * aStrings.size();
+							}
+							if (Input.TruncatedCI == "CIS")
+							{
+								// First check that we are only considering a single excitation.
+								if (ai != 0 && bi != 0)
+								{
+									continue;
+								}
+								if (aj != 0 && bj != 0)
+								{
+									continue;
+								}
+								// Otherwise, we are good. The way we order the determinants is given below.
+								if (bi == 0)
+								{
+									iIndex = ai;
+								}
+								else // Means ai == 0
+								{
+									iIndex = aStrings.size() + bi - 1;
+								}
+
+								if (bj == 0)
+								{
+									jIndex = aj;
+								}
+								else // Means aj == 0
+								{
+									jIndex = aStrings.size() + bj - 1;
+								}
+							}
+							DijA += BraSign * KetSign * Eigenvector[iIndex] * Eigenvector[jIndex];
 						}
 					}
 				}
@@ -363,12 +400,50 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 							{
 								continue;
 							}
-							DijB += BraSign * KetSign * Eigenvector[ai + bi * aStrings.size()] * Eigenvector[aj + bj * aStrings.size()];
+
+							int iIndex, jIndex;
+							if (Input.TruncatedCI == "FCI")
+							{
+								iIndex = ai + bi * aStrings.size();
+								jIndex = aj + bj * aStrings.size();
+							}
+							if (Input.TruncatedCI == "CIS")
+							{
+								// First check that we are only considering a single excitation.
+								if (ai != 0 && bi != 0)
+								{
+									continue;
+								}
+								if (aj != 0 && bj != 0)
+								{
+									continue;
+								}
+								// Otherwise, we are good. The way we order the determinants is given below.
+								if (bi == 0)
+								{
+									iIndex = ai;
+								}
+								else // Means ai == 0
+								{
+									iIndex = aStrings.size() + bi - 1;
+								}
+
+								if (bj == 0)
+								{
+									jIndex = aj;
+								}
+								else // Means aj == 0
+								{
+									jIndex = aStrings.size() + bj - 1;
+								}
+							}
+							DijB += BraSign * KetSign * Eigenvector[iIndex] * Eigenvector[jIndex];
 						}
 					}
 				}
 			}
 			DensityMatrix(i, j) += DijB;
+			DensityMatrix(j, i) = DensityMatrix(i, j);
 		} // end loop over j
 	} // end loop over i
 	return DensityMatrix;
@@ -702,124 +777,34 @@ int main(int argc, char* argv[])
 
 	std::cout << "FCI: Generating all determinant binary representations and enumerating determinants with differences... ";
 
-	//if (TruncatedCI == "CIS")
-	//{
-	//	int aVirt = aOrbitals - aElectrons;
-	//	int bVirt = bOrbitals - bElectrons;
-
-	//	for (int i = 0; i < aDim; i++)
-	//	{
-	//		/* We fill the orbitals in the following order.
-	//		11000
-	//		01100
-	//		01010
-	//		01001
-	//		10100
-	//		10010
-	//		10001
-	//		*/
-	//		std::vector<bool> tmpVec;
-	//		if (i == 0)
-	//		{
-	//			for (int j = 0; j < aOrbitals; j++)
-	//			{
-	//				if (j < aElectrons)
-	//				{
-	//					tmpVec.push_back(true);
-	//				}
-	//				else
-	//				{
-	//					tmpVec.push_back(false);
-	//				}
-	//			}
-	//		}
-	//		else
-	//		{
-	//			int EmptyOcc = (i - 1) / aVirt; // The orbital that is excited.
-	//			int FilledVirt = (i - 1) % aElectrons; // Virtual orbital that gets filled.
-	//			for (int j = 0; j < aOrbitals; j++)
-	//			{
-	//				if ((j < aOrbitals || j == aOrbitals + FilledVirt) && j != EmptyOcc)
-	//				{
-	//					tmpVec.push_back(true);
-	//				}
-	//				else
-	//				{
-	//					tmpVec.push_back(false);
-	//				}
-	//			}
-	//		}
-	//		aStrings.push_back(tmpVec);
-	//	}
-	//	for (int i = 0; i < bDim; i++)
-	//	{
-	//		std::vector<bool> tmpVec;
-	//		if (i == 0)
-	//		{
-	//			for (int j = 0; j < bOrbitals; j++)
-	//			{
-	//				if (j < bElectrons)
-	//				{
-	//					tmpVec.push_back(true);
-	//				}
-	//				else
-	//				{
-	//					tmpVec.push_back(false);
-	//				}
-	//			}
-	//		}
-	//		else
-	//		{
-	//			int EmptyOcc = (i - 1) / bVirt; // The orbital that is excited.
-	//			int FilledVirt = (i - 1) % bElectrons; // Virtual orbital that gets filled.
-	//			for (int j = 0; j < bOrbitals; j++)
-	//			{
-	//				if ((j < bOrbitals || j == bOrbitals + FilledVirt) && j != EmptyOcc)
-	//				{
-	//					tmpVec.push_back(true);
-	//				}
-	//				else
-	//				{
-	//					tmpVec.push_back(false);
-	//				}
-	//			}
-	//		}
-	//		bStrings.push_back(tmpVec);
-	//	}
-	//}
-	//else // Means use FCI
-	//{
-		for (int i = 0; i < aDimFull; i++)
+	for (int i = 0; i < aDimFull; i++)
+	{
+		std::vector<bool> tmpVec;
+		GetOrbitalString(i, aElectrons, aOrbitals, tmpVec);
+		if (i != 0 && TruncatedCI == "CIS")
 		{
-			std::vector<bool> tmpVec;
-			GetOrbitalString(i, aElectrons, aOrbitals, tmpVec);
-			if (i != 0 && TruncatedCI == "CIS")
+			int TestDiff = CountDifferences(tmpVec, aStrings[0]);
+			if (TestDiff > 1)
 			{
-				int TestDiff = CountDifferences(tmpVec, aStrings[0]);
-				if (TestDiff > 1)
-				{
-					continue;
-				}
+				continue;
 			}
-			aStrings.push_back(tmpVec);
 		}
-		for (int i = 0; i < bDimFull; i++)
+		aStrings.push_back(tmpVec);
+	}
+	for (int i = 0; i < bDimFull; i++)
+	{
+		std::vector<bool> tmpVec;
+		GetOrbitalString(i, bElectrons, bOrbitals, tmpVec);
+		if (i != 0 && TruncatedCI == "CIS")
 		{
-			std::vector<bool> tmpVec;
-			GetOrbitalString(i, bElectrons, bOrbitals, tmpVec);
-			if (i != 0 && TruncatedCI == "CIS")
+			int TestDiff = CountDifferences(tmpVec, bStrings[0]);
+			if (TestDiff > 1)
 			{
-				int TestDiff = CountDifferences(tmpVec, bStrings[0]);
-				if (TestDiff > 1)
-				{
-					continue;
-				}
+				continue;
 			}
-			bStrings.push_back(tmpVec);
 		}
-	//}
-
-	PrintBinaryStrings(aStrings);
+		bStrings.push_back(tmpVec);
+	}
 
 	std::vector< std::tuple<unsigned int, unsigned int, short int, std::vector<unsigned short int>> > aSingleDifference; // i index, j index, sign, list of different orbitals.
 	std::vector< std::tuple<unsigned int, unsigned int, short int, std::vector<unsigned short int>> > aDoubleDifference;
@@ -1290,7 +1275,6 @@ int main(int argc, char* argv[])
 			{
 				// Check if both determinants are single excitations. I don't know a better way to do this.
 				// For the total determinant to be a single excitation, it must be that either alpha or beta is in the ground state, the first determinant.
-				std::cout << std::get<0>(aSingleDifference[i]) << "\t" << std::get<0>(bSingleDifference[j]) << "\t" << std::get<1>(aSingleDifference[i]) << "\t" << std::get<1>(bSingleDifference[j]) << std::endl;
 				if (std::get<0>(aSingleDifference[i]) != 0 && std::get<0>(bSingleDifference[j]) != 0)
 				{
 					continue;
@@ -1430,12 +1414,12 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "\n" << HamEV.eigenvalues()[k];
 		Output << "\n" << HamEV.eigenvalues()[k];
-		//Eigen::MatrixXd DensityMatrix = Form1RDM(Input, HamEV.eigenvectors().col(k), aStrings, bStrings);
-		//Output << "\n1RDM\n" << 0.5 * DensityMatrix << std::endl;
-		//Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > DensityEV;
-		//DensityEV.compute(DensityMatrix);
-		//Output << "Natural Orbitals: " << std::endl;
-		//Output << DensityEV.eigenvectors() << std::endl;
+		Eigen::MatrixXd DensityMatrix = Form1RDM(Input, HamEV.eigenvectors().col(k), aStrings, bStrings);
+		Output << "\n1RDM\n" << 0.5 * DensityMatrix << std::endl;
+		Eigen::SelfAdjointEigenSolver< Eigen::MatrixXd > DensityEV;
+		DensityEV.compute(DensityMatrix);
+		Output << "Natural Orbitals: " << std::endl;
+		Output << DensityEV.eigenvectors() << std::endl;
 	}
 
 	/* This part is not needed */
