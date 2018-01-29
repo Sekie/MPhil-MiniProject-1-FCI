@@ -662,7 +662,7 @@ int main(int argc, char* argv[])
 	int bDimFull = BinomialCoeff(bOrbitals, bElectrons);
 	int DimFull = aDimFull * bDimFull;
 	int aDim, bDim, Dim;
-	int NumThreads = 4; // Degree of parallelization, currently set to max.
+	int NumThreads = 1; // Degree of parallelization, currently set to max.
 	omp_set_num_threads(NumThreads);
 
 	/* We start with definitions for truncated CI */
@@ -1237,6 +1237,38 @@ int main(int argc, char* argv[])
 
 	/* Now Group 3. Unlike before, we don't have to loop over alpha or beta having no differences. We simply loop
 	over both alpha and beta having one difference. */
+	if (TruncatedCI == "CIS") // The upper diagonal method misses some determinants. It's easier to explicitly loop through each matrix element and not attempt any transpose shortcuts.
+	{
+		for (unsigned int i = 0; i < aStrings.size(); i++)
+		{
+			for (unsigned int j = 0; j < i; j++)
+			{
+				tmpInt = CountDifferences(aStrings[i], aStrings[j]);
+				if (tmpInt == 1)
+				{
+					short int tmpInt2 = FindSign(aStrings[i], aStrings[j]);
+					std::vector<unsigned short int> tmpVec = ListDifference(aStrings[i], aStrings[j]);
+					tmpTuple = std::make_tuple(i, j, tmpInt2, tmpVec);
+					aSingleDifference.push_back(tmpTuple);
+				}
+			}
+		}
+		for (unsigned int i = 0; i < bStrings.size(); i++)
+		{
+			for (unsigned int j = 0; j < i; j++)
+			{
+				tmpInt = CountDifferences(bStrings[i], bStrings[j]);
+				if (tmpInt == 1)
+				{
+					short int tmpInt2 = FindSign(bStrings[i], bStrings[j]);
+					std::vector<unsigned short int> tmpVec = ListDifference(bStrings[i], bStrings[j]);
+					tmpTuple = std::make_tuple(i, j, tmpInt2, tmpVec);
+					bSingleDifference.push_back(tmpTuple);
+				}
+			}
+		}
+	}
+
 	int H2OMemoryWorkAround = 0;
 	if (aSingleDifference.size() > 45000) // This is a workaround for the case of H2O. Cut down memory costs
 	{
@@ -1258,6 +1290,7 @@ int main(int argc, char* argv[])
 			{
 				// Check if both determinants are single excitations. I don't know a better way to do this.
 				// For the total determinant to be a single excitation, it must be that either alpha or beta is in the ground state, the first determinant.
+				std::cout << std::get<0>(aSingleDifference[i]) << "\t" << std::get<0>(bSingleDifference[j]) << "\t" << std::get<1>(aSingleDifference[i]) << "\t" << std::get<1>(bSingleDifference[j]) << std::endl;
 				if (std::get<0>(aSingleDifference[i]) != 0 && std::get<0>(bSingleDifference[j]) != 0)
 				{
 					continue;
@@ -1341,7 +1374,7 @@ int main(int argc, char* argv[])
 				}
 
 				tripletList_Private.push_back(T(Index1, Index2, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
-				tripletList_Private.push_back(T(Index2, Index1, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
+				// tripletList_Private.push_back(T(Index2, Index1, (float)std::get<2>(aSingleDifference[i]) * (float)std::get<2>(bSingleDifference[j]) * tmpDouble));
 			}
 		}
 		#pragma omp critical
