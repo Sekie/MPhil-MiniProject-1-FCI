@@ -104,6 +104,28 @@ void GetOrbitalString(int Index, int NumElectrons, int NumOrbitals, std::vector<
 	}
 }
 
+int GetIndex(int aIndex, int bIndex, int aOrbitals, std::string TruncatedCI)
+{
+	int Index;
+	if (TruncatedCI == "FCI")
+	{
+		Index = aIndex + bIndex * aOrbitals;
+	}
+	if (TruncatedCI == "CIS")
+	{
+		// One of these should be zero. I should throw an error if one isn't.
+		if (bIndex == 0)
+		{
+			Index = aIndex;
+		}
+		else // Means aIndex == 0
+		{
+			Index = aOrbitals + bIndex - 1;
+		}
+	}
+	return Index;
+}
+
 /* This counts the number of differences between two different binary representations */
 short int CountDifferences(std::vector<bool> BraString, std::vector<bool> KetString)
 {
@@ -326,15 +348,8 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 								continue;
 							}
 							
-							int iIndex, jIndex;
-							if (Input.TruncatedCI == "FCI")
+							if (Input.TruncatedCI == "CIS") // Keep only single excitations.
 							{
-								iIndex = ai + bi * aStrings.size();
-								jIndex = aj + bj * aStrings.size();
-							}
-							if (Input.TruncatedCI == "CIS")
-							{
-								// First check that we are only considering a single excitation.
 								if (ai != 0 && bi != 0)
 								{
 									continue;
@@ -343,25 +358,9 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 								{
 									continue;
 								}
-								// Otherwise, we are good. The way we order the determinants is given below.
-								if (bi == 0)
-								{
-									iIndex = ai;
-								}
-								else // Means ai == 0
-								{
-									iIndex = aStrings.size() + bi - 1;
-								}
-
-								if (bj == 0)
-								{
-									jIndex = aj;
-								}
-								else // Means aj == 0
-								{
-									jIndex = aStrings.size() + bj - 1;
-								}
 							}
+							int iIndex = GetIndex(ai, bi, aStrings.size(), Input.TruncatedCI);
+							int jIndex = GetIndex(aj, bj, aStrings.size(), Input.TruncatedCI);
 							DijA += BraSign * KetSign * Eigenvector[iIndex] * Eigenvector[jIndex];
 						}
 					}
@@ -401,15 +400,8 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 								continue;
 							}
 
-							int iIndex, jIndex;
-							if (Input.TruncatedCI == "FCI")
+							if (Input.TruncatedCI == "CIS") // Keep only single excitations
 							{
-								iIndex = ai + bi * aStrings.size();
-								jIndex = aj + bj * aStrings.size();
-							}
-							if (Input.TruncatedCI == "CIS")
-							{
-								// First check that we are only considering a single excitation.
 								if (ai != 0 && bi != 0)
 								{
 									continue;
@@ -418,25 +410,9 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 								{
 									continue;
 								}
-								// Otherwise, we are good. The way we order the determinants is given below.
-								if (bi == 0)
-								{
-									iIndex = ai;
-								}
-								else // Means ai == 0
-								{
-									iIndex = aStrings.size() + bi - 1;
-								}
-
-								if (bj == 0)
-								{
-									jIndex = aj;
-								}
-								else // Means aj == 0
-								{
-									jIndex = aStrings.size() + bj - 1;
-								}
 							}
+							int iIndex = GetIndex(ai, bi, aStrings.size(), Input.TruncatedCI);
+							int jIndex = GetIndex(aj, bj, aStrings.size(), Input.TruncatedCI);
 							DijB += BraSign * KetSign * Eigenvector[iIndex] * Eigenvector[jIndex];
 						}
 					}
@@ -526,15 +502,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										continue;
 									}
 									
-									int BraIndex, KetIndex;
-									if (Input.TruncatedCI == "FCI")
-									{
-										BraIndex = aBra + bBra * aStrings.size();
-										KetIndex = aKet + bKet * aStrings.size();
-									}
 									if (Input.TruncatedCI == "CIS")
 									{
-										// First check that we are only considering a single excitation.
 										if (aBra != 0 && bBra != 0)
 										{
 											continue;
@@ -543,25 +512,9 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										{
 											continue;
 										}
-										// Otherwise, we are good. The way we order the determinants is given below.
-										if (bBra == 0)
-										{
-											BraIndex = aBra;
-										}
-										else // Means aBra == 0
-										{
-											BraIndex = aStrings.size() + bBra - 1;
-										}
-
-										if (bKet == 0)
-										{
-											KetIndex = aKet;
-										}
-										else // Means aKet == 0
-										{
-											KetIndex = aStrings.size() + bKet - 1;
-										}
 									}
+									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
@@ -614,15 +567,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										continue;
 									}
 									
-									int BraIndex, KetIndex;
-									if (Input.TruncatedCI == "FCI")
-									{
-										BraIndex = aBra + bBra * aStrings.size();
-										KetIndex = aKet + bKet * aStrings.size();
-									}
 									if (Input.TruncatedCI == "CIS")
 									{
-										// First check that we are only considering a single excitation.
 										if (aBra != 0 && bBra != 0)
 										{
 											continue;
@@ -631,25 +577,9 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										{
 											continue;
 										}
-										// Otherwise, we are good. The way we order the determinants is given below.
-										if (bBra == 0)
-										{
-											BraIndex = aBra;
-										}
-										else // Means aBra == 0
-										{
-											BraIndex = aStrings.size() + bBra - 1;
-										}
-
-										if (bKet == 0)
-										{
-											KetIndex = aKet;
-										}
-										else // Means aKet == 0
-										{
-											KetIndex = aStrings.size() + bKet - 1;
-										}
 									}
+									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
@@ -702,15 +632,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										continue;
 									}
 									
-									int BraIndex, KetIndex;
-									if (Input.TruncatedCI == "FCI")
-									{
-										BraIndex = aBra + bBra * aStrings.size();
-										KetIndex = aKet + bKet * aStrings.size();
-									}
 									if (Input.TruncatedCI == "CIS")
 									{
-										// First check that we are only considering a single excitation.
 										if (aBra != 0 && bBra != 0)
 										{
 											continue;
@@ -719,25 +642,9 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										{
 											continue;
 										}
-										// Otherwise, we are good. The way we order the determinants is given below.
-										if (bBra == 0)
-										{
-											BraIndex = aBra;
-										}
-										else // Means aBra == 0
-										{
-											BraIndex = aStrings.size() + bBra - 1;
-										}
-
-										if (bKet == 0)
-										{
-											KetIndex = aKet;
-										}
-										else // Means aKet == 0
-										{
-											KetIndex = aStrings.size() + bKet - 1;
-										}
 									}
+									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
@@ -796,15 +703,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										continue;
 									}
 									
-									int BraIndex, KetIndex;
-									if (Input.TruncatedCI == "FCI")
-									{
-										BraIndex = aBra + bBra * aStrings.size();
-										KetIndex = aKet + bKet * aStrings.size();
-									}
 									if (Input.TruncatedCI == "CIS")
 									{
-										// First check that we are only considering a single excitation.
 										if (aBra != 0 && bBra != 0)
 										{
 											continue;
@@ -813,25 +713,9 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 										{
 											continue;
 										}
-										// Otherwise, we are good. The way we order the determinants is given below.
-										if (bBra == 0)
-										{
-											BraIndex = aBra;
-										}
-										else // Means aBra == 0
-										{
-											BraIndex = aStrings.size() + bBra - 1;
-										}
-
-										if (bKet == 0)
-										{
-											KetIndex = aKet;
-										}
-										else // Means aKet == 0
-										{
-											KetIndex = aStrings.size() + bKet - 1;
-										}
 									}
+									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
