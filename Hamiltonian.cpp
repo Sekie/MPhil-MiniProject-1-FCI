@@ -104,12 +104,12 @@ void GetOrbitalString(int Index, int NumElectrons, int NumOrbitals, std::vector<
 	}
 }
 
-int GetIndex(int aIndex, int bIndex, int aOrbitals, std::string TruncatedCI)
+int GetDetIndex(int aIndex, int bIndex, int aDim, std::string TruncatedCI)
 {
 	int Index;
 	if (TruncatedCI == "FCI")
 	{
-		Index = aIndex + bIndex * aOrbitals;
+		Index = aIndex + bIndex * aDim;
 	}
 	if (TruncatedCI == "CIS")
 	{
@@ -120,7 +120,7 @@ int GetIndex(int aIndex, int bIndex, int aOrbitals, std::string TruncatedCI)
 		}
 		else // Means aIndex == 0
 		{
-			Index = aOrbitals + bIndex - 1;
+			Index = aDim + bIndex - 1;
 		}
 	}
 	return Index;
@@ -359,8 +359,8 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 									continue;
 								}
 							}
-							int iIndex = GetIndex(ai, bi, aStrings.size(), Input.TruncatedCI);
-							int jIndex = GetIndex(aj, bj, aStrings.size(), Input.TruncatedCI);
+							int iIndex = GetDetIndex(ai, bi, aStrings.size(), Input.TruncatedCI);
+							int jIndex = GetDetIndex(aj, bj, aStrings.size(), Input.TruncatedCI);
 							DijA += BraSign * KetSign * Eigenvector[iIndex] * Eigenvector[jIndex];
 						}
 					}
@@ -411,8 +411,8 @@ Eigen::MatrixXd Form1RDM(InputObj &Input, Eigen::VectorXf Eigenvector, std::vect
 									continue;
 								}
 							}
-							int iIndex = GetIndex(ai, bi, aStrings.size(), Input.TruncatedCI);
-							int jIndex = GetIndex(aj, bj, aStrings.size(), Input.TruncatedCI);
+							int iIndex = GetDetIndex(ai, bi, aStrings.size(), Input.TruncatedCI);
+							int jIndex = GetDetIndex(aj, bj, aStrings.size(), Input.TruncatedCI);
 							DijB += BraSign * KetSign * Eigenvector[iIndex] * Eigenvector[jIndex];
 						}
 					}
@@ -513,8 +513,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 											continue;
 										}
 									}
-									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
-									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
+									int BraIndex = GetDetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetDetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
@@ -578,8 +578,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 											continue;
 										}
 									}
-									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
-									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
+									int BraIndex = GetDetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetDetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
@@ -643,8 +643,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 											continue;
 										}
 									}
-									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
-									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
+									int BraIndex = GetDetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetDetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
@@ -714,8 +714,8 @@ Eigen::Tensor<double, 4> Form2RDM(InputObj &Input, Eigen::VectorXf Eigenvector, 
 											continue;
 										}
 									}
-									int BraIndex = GetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
-									int KetIndex = GetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
+									int BraIndex = GetDetIndex(aBra, bBra, aStrings.size(), Input.TruncatedCI);
+									int KetIndex = GetDetIndex(aKet, bKet, aStrings.size(), Input.TruncatedCI);
 									Pijkl += BraSign * KetSign * Eigenvector[BraIndex] * Eigenvector[KetIndex];
 								}
 							}
@@ -968,19 +968,7 @@ int main(int argc, char* argv[])
 				}
 			}
 			// tripletList_Private[Thread].push_back(T(i + j * aDim, i + j * aDim, tmpDoubleD));
-			int Index;
-			if (TruncatedCI == "FCI")
-			{
-				Index = i + j * aOrbitalList.size();
-			}
-			if (TruncatedCI == "CIS")
-			{
-				Index = i; // The loop over alpha excitations.
-				if (i == 0 && j != 0) // The loop over beta excitations.
-				{
-					Index = aOrbitalList.size() + j - 1;
-				}
-			}
+			int Index = GetDetIndex(i, j, aOrbitalList.size(), TruncatedCI);
 			tripletList_Private.push_back(T(Index, Index, tmpDoubleD));
 		}
 		#pragma omp critical
@@ -1064,16 +1052,8 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble1 + tmpDouble2) < MatTol) continue;
 
-			if (TruncatedCI == "FCI")
-			{
-				Index1 = std::get<0>(aSingleDifference[i]) + j * aOrbitalList.size(); // Diagonal in beta states. Hop to other beta blocks.
-				Index2 = std::get<1>(aSingleDifference[i]) + j * aOrbitalList.size();
-			}
-			if (TruncatedCI == "CIS")
-			{
-				Index1 = std::get<0>(aSingleDifference[i]);
-				Index2 = std::get<1>(aSingleDifference[i]);
-			}
+			Index1 = GetDetIndex(std::get<0>(aSingleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
+			Index2 = GetDetIndex(std::get<1>(aSingleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
 
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aSingleDifference[i])*(tmpDouble1 + tmpDouble2)));
@@ -1140,16 +1120,9 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble1 + tmpDouble2) < MatTol) continue;
 
-			if (TruncatedCI == "FCI")
-			{
-				Index1 = std::get<0>(bSingleDifference[i]) * aOrbitalList.size() + j; // Loop through each same alpha state in each beta block.
-				Index2 = std::get<1>(bSingleDifference[i]) * aOrbitalList.size() + j;
-			}
-			if (TruncatedCI == "CIS")
-			{
-				Index1 = std::get<0>(bSingleDifference[i]) + aOrbitalList.size() - 1;
-				Index2 = std::get<1>(bSingleDifference[i]) + aOrbitalList.size() - 1;
-			}
+			Index1 = GetDetIndex(j, std::get<0>(bSingleDifference[i]), aOrbitalList.size(), TruncatedCI);
+			Index2 = GetDetIndex(j, std::get<1>(bSingleDifference[i]), aOrbitalList.size(), TruncatedCI);
+
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
 			tripletList_Private.push_back(T(Index1, Index2, (double)std::get<2>(bSingleDifference[i]) * (tmpDouble1 + tmpDouble2)));
@@ -1193,16 +1166,8 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble) < MatTol) continue;
 
-			if (TruncatedCI == "FCI")
-			{
-				Index1 = std::get<0>(aDoubleDifference[i]) + j * aOrbitalList.size();
-				Index2 = std::get<1>(aDoubleDifference[i]) + j * aOrbitalList.size();
-			}
-			if (TruncatedCI == "CIS")
-			{
-				Index1 = std::get<0>(aDoubleDifference[i]);
-				Index2 = std::get<1>(aDoubleDifference[i]);
-			}
+			Index1 = GetDetIndex(std::get<0>(aSingleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
+			Index2 = GetDetIndex(std::get<1>(aSingleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
 
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
@@ -1232,16 +1197,8 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble) < MatTol) continue;
 
-			if (TruncatedCI == "FCI")
-			{
-				Index1 = std::get<0>(bDoubleDifference[i]) * aOrbitalList.size() + j; // Loop through each same alpha state in each beta block.
-				Index2 = std::get<1>(bDoubleDifference[i]) * aOrbitalList.size() + j;
-			}
-			if (TruncatedCI == "CIS")
-			{
-				Index1 = aOrbitalList.size() + std::get<0>(bDoubleDifference[i]) - 1;
-				Index2 = aOrbitalList.size() + std::get<1>(bDoubleDifference[i]) - 1;
-			}
+			Index1 = GetDetIndex(j, std::get<0>(bSingleDifference[i]), aOrbitalList.size(), TruncatedCI);
+			Index2 = GetDetIndex(j, std::get<1>(bSingleDifference[i]), aOrbitalList.size(), TruncatedCI);
 			
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
@@ -1467,8 +1424,6 @@ int main(int argc, char* argv[])
 
 	std::cout << "\nFCI: Total running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 	Output << "\nTotal running time: " << (omp_get_wtime() - Start) << " seconds." << std::endl;
-
-	system("pause");
 
 	// std::ofstream OutputHamiltonian(Input.OutputName + ".ham");
 	// OutputHamiltonian << HamDense << std::endl;
