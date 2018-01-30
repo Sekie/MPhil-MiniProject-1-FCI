@@ -774,7 +774,8 @@ int main(int argc, char* argv[])
 
 	/* We start with definitions for truncated CI */
 	std::string TruncatedCI; // Flag for which level of truncated CI to use.
-	TruncatedCI = "CIS";
+	Input.TruncatedCI = "CIS";
+	TruncatedCI = Input.TruncatedCI;
 	if (TruncatedCI == "FCI")
 	{
 		aDim = BinomialCoeff(aOrbitals, aElectrons);
@@ -887,6 +888,8 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+
+	PrintBinaryStrings(aStrings);
 
 	unsigned int NonzeroElements = Dim + aSingleDifference.size() * bDim * 2 + bSingleDifference.size() * aDim * 2 + aDoubleDifference.size() * bDim * 2
 		+ bDoubleDifference.size() * aDim * 2 + aSingleDifference.size() * bSingleDifference.size() * 4;
@@ -1166,8 +1169,8 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble) < MatTol) continue;
 
-			Index1 = GetDetIndex(std::get<0>(aSingleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
-			Index2 = GetDetIndex(std::get<1>(aSingleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
+			Index1 = GetDetIndex(std::get<0>(aDoubleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
+			Index2 = GetDetIndex(std::get<1>(aDoubleDifference[i]), j, aOrbitalList.size(), TruncatedCI);
 
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(aDoubleDifference[i]) * tmpDouble));
@@ -1197,8 +1200,8 @@ int main(int argc, char* argv[])
 
 			if (fabs(tmpDouble) < MatTol) continue;
 
-			Index1 = GetDetIndex(j, std::get<0>(bSingleDifference[i]), aOrbitalList.size(), TruncatedCI);
-			Index2 = GetDetIndex(j, std::get<1>(bSingleDifference[i]), aOrbitalList.size(), TruncatedCI);
+			Index1 = GetDetIndex(j, std::get<0>(bDoubleDifference[i]), aOrbitalList.size(), TruncatedCI);
+			Index2 = GetDetIndex(j, std::get<1>(bDoubleDifference[i]), aOrbitalList.size(), TruncatedCI);
 			
 			// tripletList_Private[Thread].push_back(T(Index1, Index2 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
 			// tripletList_Private[Thread].push_back(T(Index2, Index1 , (double)std::get<2>(bDoubleDifference[i]) * tmpDouble));
