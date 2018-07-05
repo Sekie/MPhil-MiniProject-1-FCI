@@ -774,7 +774,6 @@ int main(int argc, char* argv[])
 
 	/* We start with definitions for truncated CI */
 	std::string TruncatedCI; // Flag for which level of truncated CI to use.
-	Input.TruncatedCI = "CIS";
 	TruncatedCI = Input.TruncatedCI;
 	if (TruncatedCI == "FCI")
 	{
@@ -1374,9 +1373,9 @@ int main(int argc, char* argv[])
 	Output << "\nHamiltonian initialization took " << (omp_get_wtime() - Start) << " seconds." << std::endl;
 
 	/* Prints matrix, used for error checking on my part */
-	Eigen::MatrixXf HD = Ham;
-	std::ofstream PrintHam("printham.out");
-	PrintHam << HD << std::endl;
+	// Eigen::MatrixXf HD = Ham;
+	// std::ofstream PrintHam("printham.out");
+	// PrintHam << HD << std::endl;
 	// return 0;
 
 	Timer = omp_get_wtime();

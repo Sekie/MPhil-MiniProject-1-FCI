@@ -12,5 +12,5 @@ class InputObj
         std::map< std::string, double > Integrals;
         std::string OutputName;
         std::string InputName;
-		std::string TruncatedCI = "CIS";
+		std::string TruncatedCI = "FCI";
 };

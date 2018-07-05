@@ -42,7 +42,7 @@ void InputObj::SetNames(char* In, char* Out)
 void InputObj::Set()
 {
     std::ifstream InputFile(InputName.c_str());
-    InputFile >> aElectrons >> aOrbitals >> bElectrons >> bOrbitals >> NumberOfEV;
+    InputFile >> aElectrons >> aOrbitals >> bElectrons >> bOrbitals >> NumberOfEV >> TruncatedCI;
     if(aElectrons > aOrbitals || bElectrons > bOrbitals)
     {
         std::cerr << "FCI: ***** ERROR *****\nFCI: More electrons than orbitals. Check input file." << std::endl;
